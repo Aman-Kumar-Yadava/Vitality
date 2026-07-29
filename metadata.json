@@ -1,0 +1,6 @@
+{
+  "name": "Stride",
+  "description": "A health app to track step count, distance, and calories accurately.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
