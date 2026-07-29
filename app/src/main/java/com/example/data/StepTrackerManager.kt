@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -33,7 +34,8 @@ class StepTrackerManager(
 
     private var currentSessionStartTime = 0L
     private var sessionStartTotalSteps = 0
-    private var lastStepTime = 0L
+    var lastStepTime = 0L
+        private set
 
     init {
         // Load initial steps for today
@@ -44,14 +46,21 @@ class StepTrackerManager(
         }
     }
 
+    private val _isTracking = MutableStateFlow(false)
+    val isTracking: StateFlow<Boolean> = _isTracking
+
     fun startTracking() {
+        if (_isTracking.value) return
         stepSensor?.let {
             sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+            _isTracking.value = true
         }
     }
 
     fun stopTracking() {
+        if (!_isTracking.value) return
         sensorManager.unregisterListener(this)
+        _isTracking.value = false
         saveCurrentSession()
     }
 
@@ -98,7 +107,8 @@ class StepTrackerManager(
             val steps = _currentSteps.value - sessionStartTotalSteps
             if (steps > 0) {
                 coroutineScope.launch {
-                    val distance = (steps * 0.762f) / 1000f
+                    val profile = repository.userPreferencesRepository.userProfileFlow.first()
+                    val distance = repository.calculateDistance(steps, profile)
                     repository.addSession(WalkingSession(
                         dateString = getCurrentDateString(),
                         startTimeMs = currentSessionStartTime,
@@ -135,7 +145,8 @@ class StepTrackerManager(
             
             val endTime = System.currentTimeMillis()
             val startTime = endTime - (steps * 1000L) // fake duration
-            val distance = (steps * 0.762f) / 1000f
+            val profile = repository.userPreferencesRepository.userProfileFlow.first()
+            val distance = repository.calculateDistance(steps, profile)
             repository.addSession(WalkingSession(
                 dateString = today,
                 startTimeMs = startTime,

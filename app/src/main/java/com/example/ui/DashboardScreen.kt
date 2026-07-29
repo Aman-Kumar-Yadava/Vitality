@@ -1,6 +1,7 @@
 package com.example.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -8,9 +9,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.automirrored.rounded.DirectionsRun
+import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,9 +35,11 @@ fun DashboardScreen(viewModel: MainViewModel) {
     val currentSteps by viewModel.stepTrackerManager.currentSteps.collectAsStateWithLifecycle()
     val todayRecord by viewModel.todayRecord.collectAsStateWithLifecycle()
     val todaySessions by viewModel.todaySessions.collectAsStateWithLifecycle()
+    val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     
+    val isTracking by viewModel.isTracking.collectAsStateWithLifecycle()
     val steps = currentSteps
-    val goal = 10000
+    val goal = userProfile.dailyStepGoal
     val progress = (steps.toFloat() / goal.toFloat()).coerceIn(0f, 1f)
     
     val distance = todayRecord?.distanceKm ?: 0f
@@ -91,6 +93,14 @@ fun DashboardScreen(viewModel: MainViewModel) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            .background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    colors = listOf(
+                        androidx.compose.ui.graphics.Color.White,
+                        androidx.compose.ui.graphics.Color(0xFFF0F4F8)
+                    )
+                )
+            )
             .padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         contentPadding = PaddingValues(bottom = 80.dp)
@@ -118,6 +128,35 @@ fun DashboardScreen(viewModel: MainViewModel) {
                         lastTapTime = now
                     }
             )
+            
+            val gradient = if (isTracking) {
+                androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Color(0xFFFF416C), Color(0xFFFF4B2B)))
+            } else {
+                androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Color(0xFF00B4DB), Color(0xFF0083B0)))
+            }
+            
+            Button(
+                onClick = {
+                    if (isTracking) {
+                        viewModel.stopTracking()
+                    } else {
+                        viewModel.startTracking()
+                    }
+                },
+                modifier = Modifier.padding(bottom = 24.dp).height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                contentPadding = PaddingValues()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .background(gradient, RoundedCornerShape(28.dp))
+                        .padding(horizontal = 48.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(if (isTracking) "Pause Workout" else "Start Workout", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            }
         }
         
         item {
@@ -127,17 +166,21 @@ fun DashboardScreen(viewModel: MainViewModel) {
             ) {
                 val primaryColor = MaterialTheme.colorScheme.primary
                 val trackColor = MaterialTheme.colorScheme.primaryContainer
+                val sweepGradient = androidx.compose.ui.graphics.Brush.sweepGradient(
+                    0.0f to Color(0xFF00B4DB),
+                    1.0f to Color(0xFF0083B0)
+                )
                 
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     drawArc(
-                        color = trackColor,
+                        color = trackColor.copy(alpha = 0.5f),
                         startAngle = 135f,
                         sweepAngle = 270f,
                         useCenter = false,
                         style = Stroke(width = 24.dp.toPx(), cap = StrokeCap.Round)
                     )
                     drawArc(
-                        color = primaryColor,
+                        brush = sweepGradient,
                         startAngle = 135f,
                         sweepAngle = 270f * progress,
                         useCenter = false,
@@ -147,7 +190,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
                 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        imageVector = Icons.Filled.DirectionsRun,
+                        imageVector = Icons.AutoMirrored.Rounded.DirectionsRun,
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
                         tint = MaterialTheme.colorScheme.primary
@@ -178,7 +221,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
                     title = "Distance",
                     value = String.format("%.2f", distance),
                     unit = "km",
-                    icon = Icons.Filled.DirectionsRun,
+                    icon = Icons.AutoMirrored.Rounded.DirectionsRun,
                     color = MaterialTheme.colorScheme.secondary
                 )
                 StatCard(
@@ -186,7 +229,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
                     title = "Calories",
                     value = String.format("%.0f", calories),
                     unit = "kcal",
-                    icon = Icons.Filled.LocalFireDepartment,
+                    icon = Icons.Rounded.LocalFireDepartment,
                     color = MaterialTheme.colorScheme.tertiary
                 )
             }
@@ -270,39 +313,50 @@ fun StatCard(
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            horizontalAlignment = Alignment.Start
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        colors = listOf(
+                            color.copy(alpha = 0.2f), 
+                            color.copy(alpha = 0.05f)
+                        )
+                    )
+                )
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(32.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(32.dp)
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = unit,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 6.dp)
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = unit,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+                }
             }
         }
     }

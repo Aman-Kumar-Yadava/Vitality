@@ -11,14 +11,46 @@ import com.example.data.WalkingSession
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import com.example.data.UserPreferencesRepository
+import com.example.data.UserProfile
+import com.example.data.dataStore
+
 class MainViewModel(application: Application) : AndroidViewModel(application) {
-    private val database = AppDatabase.getDatabase(application)
-    private val repository = StepRepository(database.stepDao(), database.sessionDao())
-    val stepTrackerManager = StepTrackerManager(application, repository)
+    private val app = application as com.example.VitalityApplication
+    private val userPrefsRepository = app.userPrefsRepository
+    private val database = app.database
+    private val repository = app.stepRepository
+    val stepTrackerManager = app.stepTrackerManager
+
+    val userProfile: StateFlow<UserProfile> = userPrefsRepository.userProfileFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserProfile())
+        
+    fun completeOnboarding(goal: Int, height: Float, weight: Float, age: Int, gender: String) {
+        viewModelScope.launch {
+            val current = userProfile.value
+            userPrefsRepository.updateProfile(
+                current.copy(
+                    hasCompletedOnboarding = true,
+                    dailyStepGoal = goal,
+                    heightCm = height,
+                    weightKg = weight,
+                    age = age,
+                    gender = gender
+                )
+            )
+        }
+    }
+    
+    fun updateProfile(profile: UserProfile) {
+        viewModelScope.launch {
+            userPrefsRepository.updateProfile(profile)
+        }
+    }
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private val todayString = dateFormat.format(Date())
@@ -41,12 +73,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val totalCalories: StateFlow<Float?> = repository.totalCalories
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0f)
         
+    val isTracking: StateFlow<Boolean> = stepTrackerManager.isTracking
+    
     fun startTracking() {
-        stepTrackerManager.startTracking()
+        val intent = android.content.Intent(app, com.example.service.StepTrackingService::class.java).apply {
+            action = com.example.service.StepTrackingService.ACTION_START
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            app.startForegroundService(intent)
+        } else {
+            app.startService(intent)
+        }
     }
     
     fun stopTracking() {
-        stepTrackerManager.stopTracking()
+        val intent = android.content.Intent(app, com.example.service.StepTrackingService::class.java).apply {
+            action = com.example.service.StepTrackingService.ACTION_STOP
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            app.startForegroundService(intent)
+        } else {
+            app.startService(intent)
+        }
     }
     
     fun addMockSteps() {

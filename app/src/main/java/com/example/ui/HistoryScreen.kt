@@ -1,6 +1,7 @@
 package com.example.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,6 +33,14 @@ fun HistoryScreen(viewModel: MainViewModel) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            .background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    colors = listOf(
+                        androidx.compose.ui.graphics.Color.White,
+                        androidx.compose.ui.graphics.Color(0xFFF0F4F8)
+                    )
+                )
+            )
             .padding(horizontal = 16.dp),
         contentPadding = PaddingValues(top = 24.dp, bottom = 24.dp)
     ) {
@@ -94,10 +104,17 @@ fun LifetimeStatsCard(totalSteps: Int, totalDistance: Float, totalCalories: Floa
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(32.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(
-            modifier = Modifier.fillMaxWidth().padding(32.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        colors = listOf(Color(0xFF6A11CB), Color(0xFF2575FC))
+                    )
+                )
+                .padding(32.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -108,14 +125,14 @@ fun LifetimeStatsCard(totalSteps: Int, totalDistance: Float, totalCalories: Floa
                     style = MaterialTheme.typography.labelSmall.copy(
                         letterSpacing = 2.sp,
                     ),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = Color.White.copy(alpha = 0.8f),
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
                 
                 Text(
                     text = if (totalSteps >= 1_000_000) String.format("%.1fM", totalSteps / 1_000_000f) else "$totalSteps",
                     style = MaterialTheme.typography.displayLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = Color.White
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -125,24 +142,24 @@ fun LifetimeStatsCard(totalSteps: Int, totalDistance: Float, totalCalories: Floa
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Surface(
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        color = Color.White.copy(alpha = 0.2f),
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Text(
                             text = "${String.format("%.1f", totalDistance)} km",
-                            color = MaterialTheme.colorScheme.primaryContainer,
+                            color = Color.White,
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        color = Color.White.copy(alpha = 0.2f),
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Text(
                             text = "${String.format("%.0f", totalCalories)} kcal",
-                            color = MaterialTheme.colorScheme.primaryContainer,
+                            color = Color.White,
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )

@@ -40,7 +40,8 @@ class MainActivity : ComponentActivity() {
                 DisposableEffect(Unit) {
                     viewModel.startTracking()
                     onDispose {
-                        viewModel.stopTracking()
+                        // Let the service continue in the background
+                        // viewModel.stopTracking()
                     }
                 }
 
@@ -48,7 +49,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainScreen(viewModel)
+                    com.example.ui.RootScreen(viewModel)
                 }
             }
         }

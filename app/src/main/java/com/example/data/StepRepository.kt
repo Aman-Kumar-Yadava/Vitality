@@ -1,8 +1,13 @@
 package com.example.data
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
-class StepRepository(private val stepDao: StepDao, private val sessionDao: SessionDao) {
+class StepRepository(
+    private val stepDao: StepDao, 
+    private val sessionDao: SessionDao,
+    val userPreferencesRepository: UserPreferencesRepository
+) {
     val allRecords: Flow<List<DailyStepRecord>> = stepDao.getAllRecords()
     val totalSteps: Flow<Int?> = stepDao.getTotalSteps()
     val totalDistance: Flow<Float?> = stepDao.getTotalDistance()
@@ -18,8 +23,9 @@ class StepRepository(private val stepDao: StepDao, private val sessionDao: Sessi
 
     suspend fun updateStepsForDate(date: String, newSteps: Int) {
         val existing = stepDao.getRecordForDateSync(date)
-        val distance = calculateDistance(newSteps)
-        val calories = calculateCalories(newSteps)
+        val profile = userPreferencesRepository.userProfileFlow.first()
+        val distance = calculateDistance(newSteps, profile)
+        val calories = calculateCalories(distance, profile)
         val record = DailyStepRecord(
             dateString = date,
             steps = newSteps,
@@ -37,14 +43,18 @@ class StepRepository(private val stepDao: StepDao, private val sessionDao: Sessi
         sessionDao.insertSession(session)
     }
     
-    // Simple formulas for estimation
-    private fun calculateDistance(steps: Int): Float {
-        // Assume average stride length of 0.762 meters
-        return (steps * 0.762f) / 1000f
+    fun calculateDistance(steps: Int, profile: UserProfile): Float {
+        val strideLengthMeters = if (profile.gender == "Male") {
+            profile.heightCm * 0.00415f
+        } else {
+            profile.heightCm * 0.00413f
+        }
+        return (steps * strideLengthMeters) / 1000f
     }
     
-    private fun calculateCalories(steps: Int): Float {
-        // Assume ~0.04 calories per step
-        return steps * 0.04f
+    fun calculateCalories(distanceKm: Float, profile: UserProfile): Float {
+        // Approximate: distance (km) * weight (kg) * factor
+        val factor = if (profile.gender == "Male") 1.03f else 0.98f
+        return distanceKm * profile.weightKg * factor
     }
 }

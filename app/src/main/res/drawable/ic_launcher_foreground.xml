@@ -1,12 +1,67 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group android:scaleX="2.0" android:scaleY="2.0" android:translateX="30" android:translateY="30">
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M13.5,5.5c1.1,0 2,-0.9 2,-2s-0.9,-2 -2,-2 -2,0.9 -2,2 0.9,2 2,2zM9.8,8.9L7,23h2.1l1.8,-8 2.1,2v6h2v-7.5l-2.1,-2 0.6,-3C14.8,12 16.8,13 19,13v-2c-1.9,0 -3.5,-1 -4.3,-2.4l-1,-1.6c-0.4,-0.6 -1,-1 -1.7,-1 -0.3,0 -0.5,0.1 -0.8,0.1L6,8.3V13h2V9.6l1.8,-0.7"/>
-    </group>
+
+    <!-- Glowing backdrop (Drop shadow simulation) -->
+    <path
+        android:pathData="M 54,82 C 30,64 26,49 26,39 C 26,28 35,22 43,22 C 48,22 52,25 54,29 C 56,25 60,22 65,22 C 73,22 82,28 82,39 C 82,49 78,64 54,82 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="45"
+                android:gradientRadius="35">
+                <item android:offset="0.0" android:color="#40FF5500" />
+                <item android:offset="1.0" android:color="#00FF5500" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Main stylized heart/pulse shape -->
+    <path
+        android:pathData="M 54,78 C 30,60 26,45 26,35 C 26,24 35,18 43,18 C 48,18 52,21 54,25 C 56,21 60,18 65,18 C 73,18 82,24 82,35 C 82,45 78,60 54,78 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="26"
+                android:startY="18"
+                android:endX="82"
+                android:endY="78">
+                <item android:offset="0.0" android:color="#FFFF8800" />
+                <item android:offset="0.5" android:color="#FFFF5500" />
+                <item android:offset="1.0" android:color="#FFFF2200" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Top Left Glass highlight 1 -->
+    <path
+        android:pathData="M 43,20 C 35,20 29,25 28,33 C 32,25 38,22 43,22 C 46,22 49,24 51,27 C 49,23 46,20 43,20 Z"
+        android:fillColor="#90FFFFFF" />
+
+    <!-- Top Right Glass highlight 2 -->
+    <path
+        android:pathData="M 65,20 C 60,20 57,23 55,27 C 57,24 60,22 65,22 C 70,22 76,25 80,33 C 79,25 73,20 65,20 Z"
+        android:fillColor="#90FFFFFF" />
+        
+    <!-- Bottom Inner Shadow / Ambient occlusion -->
+    <path
+        android:pathData="M 54,74 C 70,60 76,48 78,39 C 78,47 72,58 54,78 C 36,58 30,47 30,39 C 32,48 38,60 54,74 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54"
+                android:startY="39"
+                android:endX="54"
+                android:endY="78">
+                <item android:offset="0.0" android:color="#00330000" />
+                <item android:offset="1.0" android:color="#60330000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
 </vector>
