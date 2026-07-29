@@ -27,7 +27,10 @@ data class UserProfile(
     val pitch: Float = 1.0f,
     
     // Widget Settings
-    val widgetOpacity: Float = 1.0f
+    val widgetOpacity: Float = 1.0f,
+    
+    // UI Settings
+    val uiNoiseLevel: Float = 0.05f
 )
 
 class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
@@ -49,6 +52,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         val PITCH = floatPreferencesKey("pitch")
         
         val WIDGET_OPACITY = floatPreferencesKey("widget_opacity")
+        val UI_NOISE_LEVEL = floatPreferencesKey("ui_noise_level")
     }
     
     val userProfileFlow: Flow<UserProfile> = dataStore.data.map { preferences ->
@@ -67,7 +71,8 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             announceCaloriesInterval = preferences[PreferencesKeys.ANNOUNCE_CALORIES_INTERVAL] ?: 100f,
             speechRate = preferences[PreferencesKeys.SPEECH_RATE] ?: 1.0f,
             pitch = preferences[PreferencesKeys.PITCH] ?: 1.0f,
-            widgetOpacity = preferences[PreferencesKeys.WIDGET_OPACITY] ?: 1.0f
+            widgetOpacity = preferences[PreferencesKeys.WIDGET_OPACITY] ?: 1.0f,
+            uiNoiseLevel = preferences[PreferencesKeys.UI_NOISE_LEVEL] ?: 0.05f
         )
     }
     
@@ -88,6 +93,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             preferences[PreferencesKeys.SPEECH_RATE] = profile.speechRate
             preferences[PreferencesKeys.PITCH] = profile.pitch
             preferences[PreferencesKeys.WIDGET_OPACITY] = profile.widgetOpacity
+            preferences[PreferencesKeys.UI_NOISE_LEVEL] = profile.uiNoiseLevel
         }
     }
     

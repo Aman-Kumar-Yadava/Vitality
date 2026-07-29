@@ -37,7 +37,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
         start = Offset(0f, 0f),
         end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
     )
-        
+    
     Scaffold(
         topBar = {
             TopAppBar(
@@ -50,7 +50,12 @@ fun SettingsScreen(viewModel: MainViewModel) {
         },
         containerColor = Color.Transparent
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().background(bgGradient)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(bgGradient)
+                .noiseOverlay(userProfile.uiNoiseLevel)
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -172,6 +177,33 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         )
                         Text(
                             text = "${(userProfile.widgetOpacity * 100).roundToInt()}%",
+                            modifier = Modifier.align(Alignment.End),
+                            color = Color.DarkGray
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                Text("UI Settings", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), modifier = Modifier.padding(bottom = 16.dp), color = Color(0xFF1E1E1E))
+                
+                GlassCard {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Background Noise Strength", fontWeight = FontWeight.SemiBold, color = Color(0xFF1E1E1E))
+                        Text("Adds a textured grain effect to backgrounds", style = MaterialTheme.typography.bodySmall, color = Color.DarkGray)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Slider(
+                            value = userProfile.uiNoiseLevel,
+                            onValueChange = { newValue ->
+                                coroutineScope.launch {
+                                    viewModel.updateProfile(userProfile.copy(uiNoiseLevel = newValue))
+                                }
+                            },
+                            valueRange = 0f..0.2f, // Max 20% noise to prevent it from getting too intense
+                            colors = SliderDefaults.colors(thumbColor = Color(0xFF7F00FF), activeTrackColor = Color(0xFF7F00FF))
+                        )
+                        Text(
+                            text = "${(userProfile.uiNoiseLevel * 100).roundToInt()}%",
                             modifier = Modifier.align(Alignment.End),
                             color = Color.DarkGray
                         )

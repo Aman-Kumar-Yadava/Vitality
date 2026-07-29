@@ -24,6 +24,7 @@ import com.example.viewmodel.MainViewModel
 @Composable
 fun HistoryScreen(viewModel: MainViewModel) {
     val history by viewModel.allRecords.collectAsStateWithLifecycle()
+    val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     
     val totalSteps = history.sumOf { it.steps }
     val totalDistance = history.map { it.distanceKm }.sum()
@@ -40,7 +41,12 @@ fun HistoryScreen(viewModel: MainViewModel) {
         end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
     )
 
-    Box(modifier = Modifier.fillMaxSize().background(bgGradient)) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(bgGradient)
+            .noiseOverlay(userProfile.uiNoiseLevel)
+    ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,

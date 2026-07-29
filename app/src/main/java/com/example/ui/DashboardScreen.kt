@@ -57,7 +57,6 @@ fun DashboardScreen(viewModel: MainViewModel) {
     var tapCount by remember { mutableIntStateOf(0) }
     var lastTapTime by remember { mutableLongStateOf(0L) }
 
-    // Exactly matching the background gradient from the reference
     val bgGradient = Brush.linearGradient(
         colors = listOf(
             Color(0xFFD4F0FF), // Top Left - light blue
@@ -69,196 +68,210 @@ fun DashboardScreen(viewModel: MainViewModel) {
         end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
     )
 
-    Box(modifier = Modifier.fillMaxSize().background(bgGradient)) {
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(bgGradient)
+            .noiseOverlay(userProfile.uiNoiseLevel)
+    ) {
+        val screenHeight = maxHeight
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             contentPadding = PaddingValues(top = 48.dp, bottom = 120.dp)
         ) {
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier.fillMaxWidth().height(screenHeight - 48.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Spacer(modifier = Modifier.width(40.dp))
-                }
-                
-                Text(
-                    text = "Today's Activity",
-                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold),
-                    color = Color(0xFF1E1E1E),
-                    modifier = Modifier.clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val now = System.currentTimeMillis()
-                        if (now - lastTapTime > 1000) tapCount = 1 else tapCount++
-                        if (tapCount >= 5) {
-                            viewModel.addMockSteps()
-                            tapCount = 0
-                        }
-                        lastTapTime = now
+                        Spacer(modifier = Modifier.width(40.dp))
                     }
-                )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                Text(
-                    text = "Let's keep going! You're doing great \uD83D\uDCAA",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.DarkGray
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                val btnGradient = Brush.horizontalGradient(
-                    colors = if (isTracking) listOf(Color(0xFFFF512F), Color(0xFFDD2476)) 
-                             else listOf(Color(0xFF6143FF), Color(0xFFF72585), Color(0xFFFF8947))
-                )
-                
-                Button(
-                    onClick = {
-                        if (isTracking) viewModel.stopTracking() else viewModel.startTracking()
-                    },
-                    modifier = Modifier.fillMaxWidth(0.85f).height(64.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                    contentPadding = PaddingValues(),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 8.dp,
-                        pressedElevation = 4.dp
+                    
+                    Text(
+                        text = "Today's Activity",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color(0xFF1E1E1E),
+                        modifier = Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            val now = System.currentTimeMillis()
+                            if (now - lastTapTime > 1000) tapCount = 1 else tapCount++
+                            if (tapCount >= 5) {
+                                viewModel.addMockSteps()
+                                tapCount = 0
+                            }
+                            lastTapTime = now
+                        }
                     )
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(btnGradient, RoundedCornerShape(32.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (isTracking) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .background(Color.White.copy(alpha = 0.3f), CircleShape)
-                                    .padding(4.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = if (isTracking) "Pause Workout" else "Start Workout", 
-                                color = Color.White, 
-                                fontWeight = FontWeight.SemiBold, 
-                                fontSize = 18.sp
-                            )
-                        }
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(32.dp))
-            }
-            
-            item {
-                // Main Ring Card
-                GlassCard(modifier = Modifier.fillMaxWidth().height(340.dp)) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        val trackColor = Color(0xFFE0E0E0).copy(alpha = 0.4f)
-                        
-                        // Smooth gradient for the circular progress bar matching the reference image perfectly
-                        val ringGradient = Brush.sweepGradient(
-                            0.0f to Color(0xFF7000FF), // Deep purple
-                            0.375f to Color(0xFFFF007F), // Vibrant pink
-                            0.75f to Color(0xFFFF8947), // Bright orange
-                            0.85f to Color(0xFFFF8947), // Maintain orange for end cap
-                            0.95f to Color(0xFF7000FF), // Prevent wrap-around bleed
-                            1.0f to Color(0xFF7000FF) // Pure purple for start cap
+                    
+                    Spacer(modifier = Modifier.height(2.dp))
+                    
+                    Text(
+                        text = "Let's keep going! You're doing great 💪",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.DarkGray
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    val btnGradient = Brush.horizontalGradient(
+                        colors = if (isTracking) listOf(Color(0xFFFF512F), Color(0xFFDD2476)) 
+                                 else listOf(Color(0xFF6143FF), Color(0xFFF72585), Color(0xFFFF8947))
+                    )
+                    
+                    Button(
+                        onClick = {
+                            if (isTracking) viewModel.stopTracking() else viewModel.startTracking()
+                        },
+                        modifier = Modifier.fillMaxWidth(0.85f).height(56.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                        contentPadding = PaddingValues(),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 8.dp,
+                            pressedElevation = 4.dp
                         )
-                        
-                        Canvas(modifier = Modifier.size(260.dp)) {
-                            // Rotate canvas so startAngle=0 matches 135 degrees, making the sweep gradient smooth
-                            rotate(135f) {
-                                drawArc(
-                                    color = trackColor,
-                                    startAngle = 0f,
-                                    sweepAngle = 270f,
-                                    useCenter = false,
-                                    style = Stroke(width = 24.dp.toPx(), cap = StrokeCap.Round)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(btnGradient, RoundedCornerShape(32.dp))
+                                .noiseOverlay(userProfile.uiNoiseLevel),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = if (isTracking) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .background(Color.White.copy(alpha = 0.3f), CircleShape)
+                                        .padding(4.dp)
                                 )
-                                drawArc(
-                                    brush = ringGradient,
-                                    startAngle = 0f,
-                                    sweepAngle = 270f * progress,
-                                    useCenter = false,
-                                    style = Stroke(width = 24.dp.toPx(), cap = StrokeCap.Round)
-                                )
-                            }
-                        }
-                        
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.DirectionsRun,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = Color(0xFF7F00FF)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "$steps",
-                                style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Black),
-                                color = Color(0xFF1E1E1E)
-                            )
-                            Text(
-                                text = "/ $goal steps",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = Color.DarkGray
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            
-                            val percent = (progress * 100).toInt()
-                            Box(
-                                modifier = Modifier
-                                    .background(Color(0xFFE8EAF6), RoundedCornerShape(12.dp))
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "★ $percent% of Goal",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = Color(0xFF5C6BC0)
+                                    text = if (isTracking) "Pause Workout" else "Start Workout", 
+                                    color = Color.White, 
+                                    fontWeight = FontWeight.SemiBold, 
+                                    fontSize = 16.sp
                                 )
                             }
                         }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Main Ring Card
+                    GlassCard(modifier = Modifier.fillMaxWidth().weight(1f), noiseLevel = userProfile.uiNoiseLevel) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            val trackColor = Color(0xFFE0E0E0).copy(alpha = 0.4f)
+                            
+                            // Smooth gradient for the circular progress bar matching the reference image perfectly
+                            val ringGradient = Brush.sweepGradient(
+                                0.0f to Color(0xFF7000FF), // Deep purple
+                                0.375f to Color(0xFFFF007F), // Vibrant pink
+                                0.75f to Color(0xFFFF8947), // Bright orange
+                                0.85f to Color(0xFFFF8947), // Maintain orange for end cap
+                                0.95f to Color(0xFF7000FF), // Prevent wrap-around bleed
+                                1.0f to Color(0xFF7000FF) // Pure purple for start cap
+                            )
+                            
+                            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                                val minDim = minOf(maxWidth, maxHeight)
+                                val canvasSize = minDim * 0.8f
+                                Canvas(modifier = Modifier.size(canvasSize).align(Alignment.Center)) {
+                                    rotate(135f) {
+                                        drawArc(
+                                            color = trackColor,
+                                            startAngle = 0f,
+                                            sweepAngle = 270f,
+                                            useCenter = false,
+                                            style = Stroke(width = 20.dp.toPx(), cap = StrokeCap.Round)
+                                        )
+                                        drawArc(
+                                            brush = ringGradient,
+                                            startAngle = 0f,
+                                            sweepAngle = 270f * progress,
+                                            useCenter = false,
+                                            style = Stroke(width = 20.dp.toPx(), cap = StrokeCap.Round)
+                                        )
+                                    }
+                                }
+                            }
+                            
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.DirectionsRun,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(36.dp),
+                                    tint = Color(0xFF7F00FF)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "$steps",
+                                    style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Black),
+                                    color = Color(0xFF1E1E1E)
+                                )
+                                Text(
+                                    text = "/ $goal steps",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.DarkGray
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                val percent = (progress * 100).toInt()
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color(0xFFE8EAF6), RoundedCornerShape(12.dp))
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "★ $percent% of Goal",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = Color(0xFF5C6BC0)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        StatCard(
+                            modifier = Modifier.weight(1f).height(120.dp),
+                            title = "Distance",
+                            value = String.format("%.2f", distance),
+                            unit = "km",
+                            icon = Icons.AutoMirrored.Rounded.DirectionsRun,
+                            colors = listOf(Color(0xFF9D50BB), Color(0xFF6E48AA)),
+                            noiseLevel = userProfile.uiNoiseLevel
+                        )
+                        StatCard(
+                            modifier = Modifier.weight(1f).height(120.dp),
+                            title = "Calories",
+                            value = String.format("%.0f", calories),
+                            unit = "kcal",
+                            icon = Icons.Rounded.LocalFireDepartment,
+                            colors = listOf(Color(0xFFFF8008), Color(0xFFFFC837)),
+                            noiseLevel = userProfile.uiNoiseLevel
+                        )
                     }
                 }
             }
             
             item {
-                Spacer(modifier = Modifier.height(24.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    StatCard(
-                        modifier = Modifier.weight(1f).height(160.dp),
-                        title = "Distance",
-                        value = String.format("%.2f", distance),
-                        unit = "km",
-                        icon = Icons.AutoMirrored.Rounded.DirectionsRun,
-                        colors = listOf(Color(0xFF9D50BB), Color(0xFF6E48AA))
-                    )
-                    StatCard(
-                        modifier = Modifier.weight(1f).height(160.dp),
-                        title = "Calories",
-                        value = String.format("%.0f", calories),
-                        unit = "kcal",
-                        icon = Icons.Rounded.LocalFireDepartment,
-                        colors = listOf(Color(0xFFFF8008), Color(0xFFFFC837))
-                    )
-                }
-            }
-            
-            item {
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 if (todaySessions.isNotEmpty()) {
                     Text(
                         text = "Today's Sessions",
@@ -272,7 +285,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
             
             items(todaySessions.size) { index ->
                 val session = todaySessions[index]
-                SessionCard(session)
+                SessionCard(session, userProfile.uiNoiseLevel)
                 Spacer(modifier = Modifier.height(12.dp))
             }
         }
@@ -280,7 +293,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
 }
 
 @Composable
-fun GlassCard(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
+fun GlassCard(modifier: Modifier = Modifier, noiseLevel: Float = 0f, content: @Composable BoxScope.() -> Unit) {
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(32.dp),
@@ -288,17 +301,17 @@ fun GlassCard(modifier: Modifier = Modifier, content: @Composable BoxScope.() ->
         border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.7f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Box(modifier = Modifier.fillMaxSize(), content = content)
+        Box(modifier = Modifier.fillMaxSize().noiseOverlay(noiseLevel), content = content)
     }
 }
 
 @Composable
-fun SessionCard(session: WalkingSession) {
+fun SessionCard(session: WalkingSession, noiseLevel: Float) {
     val dateFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     val startTime = dateFormat.format(Date(session.startTimeMs))
     val endTime = dateFormat.format(Date(session.endTimeMs))
     
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), noiseLevel = noiseLevel) {
         Row(
             modifier = Modifier.padding(20.dp).fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -334,7 +347,8 @@ fun StatCard(
     value: String,
     unit: String,
     icon: ImageVector,
-    colors: List<Color>
+    colors: List<Color>,
+    noiseLevel: Float
 ) {
     Card(
         modifier = modifier,
@@ -345,6 +359,7 @@ fun StatCard(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Brush.linearGradient(colors = colors))
+                .noiseOverlay(noiseLevel)
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val path = androidx.compose.ui.graphics.Path().apply {

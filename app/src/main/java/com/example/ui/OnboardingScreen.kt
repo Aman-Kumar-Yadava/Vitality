@@ -53,7 +53,12 @@ fun OnboardingScreen(onComplete: (Int, Float, Float, Int, String) -> Unit) {
         },
         containerColor = Color.Transparent
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().background(bgGradient)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(bgGradient)
+                .noiseOverlay(0.05f)
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
