@@ -82,7 +82,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
         ) {
             item {
                 Column(
-                    modifier = Modifier.fillMaxWidth().height(screenHeight - 48.dp),
+                    modifier = Modifier.fillMaxWidth().height(screenHeight - 250.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(
@@ -249,7 +249,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         StatCard(
-                            modifier = Modifier.weight(1f).height(120.dp),
+                            modifier = Modifier.weight(1f).height(100.dp),
                             title = "Distance",
                             value = String.format("%.2f", distance),
                             unit = "km",
@@ -258,7 +258,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
                             noiseLevel = userProfile.uiNoiseLevel
                         )
                         StatCard(
-                            modifier = Modifier.weight(1f).height(120.dp),
+                            modifier = Modifier.weight(1f).height(100.dp),
                             title = "Calories",
                             value = String.format("%.0f", calories),
                             unit = "kcal",
@@ -377,7 +377,7 @@ fun StatCard(
             }
             
             Column(
-                modifier = Modifier.padding(20.dp).fillMaxSize(),
+                modifier = Modifier.padding(16.dp).fillMaxSize(),
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
@@ -388,39 +388,39 @@ fun StatCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(32.dp)
                             .background(Color.White.copy(alpha = 0.25f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(imageVector = icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                        Icon(imageVector = icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                     }
                     
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
                         contentDescription = null,
                         tint = Color.White.copy(alpha = 0.7f),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
                 
                 Column {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.labelMedium,
                         color = Color.White.copy(alpha = 0.9f)
                     )
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             text = value,
-                            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                             color = Color.White
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = unit,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.labelMedium,
                             color = Color.White.copy(alpha = 0.8f),
-                            modifier = Modifier.padding(bottom = 4.dp)
+                            modifier = Modifier.padding(bottom = 2.dp)
                         )
                     }
                 }
