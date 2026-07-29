@@ -1,6 +1,5 @@
 package com.example.service
 
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -17,7 +16,6 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
-import com.example.MainActivity
 import com.example.R
 import com.example.VitalityApplication
 import com.example.data.UserProfile
@@ -30,69 +28,81 @@ import java.util.Locale
 
 class StepTrackingService : Service(), TextToSpeech.OnInitListener {
 
-    private lateinit var tts: TextToSpeech
-    private var isTtsInitialized = false
-    
+    private val CHANNEL_ID = "StepTrackingServiceChannel"
+    private val NOTIFICATION_ID = 1
+
+    private lateinit var app: VitalityApplication
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
-    
-    private lateinit var app: VitalityApplication
-    private var currentUserProfile: UserProfile = UserProfile()
+
+    private var notificationBuilder: NotificationCompat.Builder? = null
+    private var currentUserProfile = UserProfile()
+
+    private lateinit var tts: TextToSpeech
+    private var isTtsInitialized = false
+    private lateinit var audioManager: AudioManager
+    private var audioFocusRequest: AudioFocusRequest? = null
     
     private var lastAnnouncedSteps = 0
     private var lastAnnouncedDistanceKm = 0f
     private var lastAnnouncedCalories = 0f
     
-    private lateinit var audioManager: AudioManager
-    private var audioFocusRequest: AudioFocusRequest? = null
-    
+    private var lastNotifiedSteps = -1
+    private var lastNotifiedTime = 0L
+
     companion object {
         const val ACTION_START = "ACTION_START"
-        const val ACTION_STOP = "ACTION_STOP"
+        const val ACTION_PASSIVE_START = "ACTION_PASSIVE_START"
         const val ACTION_PAUSE = "ACTION_PAUSE"
         const val ACTION_RESUME = "ACTION_RESUME"
-        private const val NOTIFICATION_ID = 101
-        private const val CHANNEL_ID = "step_tracking_channel"
+        const val ACTION_STOP = "ACTION_STOP"
     }
 
     override fun onCreate() {
         super.onCreate()
         app = application as VitalityApplication
+        
         tts = TextToSpeech(this, this)
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        
-        createNotificationChannel()
-        startForegroundService()
-        
-        observeData()
-    }
-    
-    private var notificationBuilder: NotificationCompat.Builder? = null
-    private var isUpdatingNotification = false
 
-    private fun startForegroundService() {
-        val notificationIntent = Intent(this, MainActivity::class.java)
+        serviceScope.launch {
+            app.userPrefsRepository.userProfileFlow.collectLatest { profile ->
+                currentUserProfile = profile
+                updateTtsSettings()
+            }
+        }
+        startService()
+    }
+
+    private fun startService() {
+        createNotificationChannel()
+        
+        val notificationIntent = Intent(this, com.example.MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE
         )
         
-        val stopIntent = Intent(this, StepTrackingService::class.java).apply { action = ACTION_STOP }
+        val stopIntent = Intent(this, StepTrackingService::class.java).apply {
+            action = ACTION_STOP
+        }
         val stopPendingIntent = PendingIntent.getService(
             this, 1, stopIntent, PendingIntent.FLAG_IMMUTABLE
         )
 
-        val customView = android.widget.RemoteViews(packageName, R.layout.notification_live_activity)
-
         notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-            .setCustomContentView(customView)
+            .setContentTitle("Step Tracker")
+            .setContentText("Active in background")
             .setContentIntent(pendingIntent)
             .setOngoing(true)
-            .addAction(0, "Stop Tracking", stopPendingIntent)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .addAction(0, "Stop", stopPendingIntent)
             
         val notification = notificationBuilder!!.build()
-            
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             ServiceCompat.startForeground(
                 this, 
@@ -103,97 +113,64 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
-    }
-    
-    private fun updateNotification(steps: Int, distance: Float, calories: Float) {
-        val builder = notificationBuilder ?: return
-        val customView = android.widget.RemoteViews(packageName, R.layout.notification_live_activity)
-        
-        customView.setTextViewText(R.id.tvSteps, steps.toString())
-        customView.setTextViewText(R.id.tvDistance, String.format("%.2f km", distance))
-        customView.setTextViewText(R.id.tvCalories, "${calories.toInt()} kcal")
-        
-        // Calculate time
-        val sessionStart = app.stepTrackerManager.lastStepTime
-        if (sessionStart > 0) {
-            val elapsed = System.currentTimeMillis() - sessionStart
-            val seconds = (elapsed / 1000) % 60
-            val minutes = (elapsed / (1000 * 60)) % 60
-            val hours = (elapsed / (1000 * 60 * 60))
-            if (hours > 0) {
-                customView.setTextViewText(R.id.tvTime, String.format("%d:%02d:%02d", hours, minutes, seconds))
-            } else {
-                customView.setTextViewText(R.id.tvTime, String.format("%02d:%02d", minutes, seconds))
-            }
-        }
-        
-        val isTracking = app.stepTrackerManager.isTracking.value
-        
-        val toggleIntent = Intent(this, StepTrackingService::class.java).apply { 
-            action = if (isTracking) ACTION_PAUSE else ACTION_RESUME 
-        }
-        val togglePendingIntent = PendingIntent.getService(
-            this, 2, toggleIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        
-        val stopIntent = Intent(this, StepTrackingService::class.java).apply { action = ACTION_STOP }
-        val stopPendingIntent = PendingIntent.getService(
-            this, 3, stopIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        
-        customView.setImageViewResource(R.id.btnPause, if (isTracking) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play)
-        customView.setOnClickPendingIntent(R.id.btnPause, togglePendingIntent)
-        customView.setOnClickPendingIntent(R.id.btnStop, stopPendingIntent)
-        
-        if (!isTracking) {
-            customView.setTextViewText(R.id.tvTitle, "Walk Paused")
-        } else {
-            customView.setTextViewText(R.id.tvTitle, "Active Walk")
-        }
-        
-        builder.setCustomContentView(customView)
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(NOTIFICATION_ID, builder.build())
-    }
-    
-    private fun observeData() {
-        // Observe Profile for TTS settings
-        serviceScope.launch {
-            app.userPrefsRepository.userProfileFlow.collectLatest { profile ->
-                currentUserProfile = profile
-                updateTtsSettings()
-            }
-        }
-        
-        // Observe Steps
-        serviceScope.launch {
-            app.stepTrackerManager.currentSteps.collectLatest { steps ->
-                handleNewSteps(steps)
-            }
-        }
         
         // Update notification UI regularly (for time display)
         serviceScope.launch {
             while (true) {
                 kotlinx.coroutines.delay(1000L) // every second
-                if (app.stepTrackerManager.isTracking.value) {
-                    val steps = app.stepTrackerManager.currentSteps.value
-                    val distance = app.stepRepository.calculateDistance(steps, currentUserProfile)
-                    val calories = app.stepRepository.calculateCalories(distance, currentUserProfile)
+                val steps = app.stepTrackerManager.currentSteps.value
+                val distance = app.stepRepository.calculateDistance(steps, currentUserProfile)
+                val calories = app.stepRepository.calculateCalories(distance, currentUserProfile)
+                
+                // Only update notification every 5 seconds OR if steps changed
+                val now = System.currentTimeMillis()
+                if (steps != lastNotifiedSteps || (now - lastNotifiedTime) > 5000L) {
                     updateNotification(steps, distance, calories)
+                    lastNotifiedSteps = steps
+                    lastNotifiedTime = now
                 }
+                
+                checkMilestones(steps, distance, calories)
             }
         }
     }
-    
-    private fun handleNewSteps(steps: Int) {
-        if (steps == 0) return // Skip initialization phase
+
+    private fun updateNotification(steps: Int, distance: Float, calories: Float) {
+        val builder = notificationBuilder ?: return
         
-        val distance = app.stepRepository.calculateDistance(steps, currentUserProfile)
-        val calories = app.stepRepository.calculateCalories(distance, currentUserProfile)
+        // Calculate time
+        val sessionStart = app.stepTrackerManager.lastStepTime
+        var timeStr = "00:00"
+        if (sessionStart > 0 && app.stepTrackerManager.isTracking.value) {
+            val elapsed = System.currentTimeMillis() - sessionStart
+            val seconds = (elapsed / 1000) % 60
+            val minutes = (elapsed / (1000 * 60)) % 60
+            val hours = (elapsed / (1000 * 60 * 60))
+            if (hours > 0) {
+                timeStr = String.format("%d:%02d:%02d", hours, minutes, seconds)
+            } else {
+                timeStr = String.format("%02d:%02d", minutes, seconds)
+            }
+        }
         
-        updateNotification(steps, distance, calories)
+        val content = "Steps: $steps | Distance: ${String.format("%.2f", distance)} km | Calories: ${calories.toInt()} kcal"
         
+        // Add progress bar if goal is set
+        val goal = currentUserProfile.dailyStepGoal
+        if (goal > 0) {
+            builder.setProgress(goal, steps, false)
+        }
+        
+        builder.setContentTitle(if (app.stepTrackerManager.isTracking.value) "Active Workout ($timeStr)" else "Step Tracker")
+        builder.setContentText(content)
+        builder.setStyle(NotificationCompat.BigTextStyle().bigText(content))
+        
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(NOTIFICATION_ID, builder.build())
+    }
+
+    private fun checkMilestones(steps: Int, distance: Float, calories: Float) {
+        if (!app.stepTrackerManager.isTracking.value) return
         if (!isTtsInitialized || !currentUserProfile.announcementsEnabled) return
         
         // Check Milestones
@@ -203,22 +180,22 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
             announce("You have reached $count steps!")
             lastAnnouncedSteps = count
         }
-        
+            
         val distanceInterval = currentUserProfile.announceDistanceIntervalKm
         if (distanceInterval > 0f && distance - lastAnnouncedDistanceKm >= distanceInterval) {
             val count = ((distance / distanceInterval).toInt()) * distanceInterval
             announce("You have travelled ${String.format("%.1f", count)} kilometers!")
-            lastAnnouncedDistanceKm = count
+            lastAnnouncedDistanceKm = count.toFloat()
         }
-        
+            
         val calInterval = currentUserProfile.announceCaloriesInterval
         if (calInterval > 0f && calories - lastAnnouncedCalories >= calInterval) {
             val count = ((calories / calInterval).toInt()) * calInterval
             announce("You have burned ${count.toInt()} calories!")
-            lastAnnouncedCalories = count
+            lastAnnouncedCalories = count.toFloat()
         }
     }
-    
+
     private fun updateTtsSettings() {
         if (!isTtsInitialized) return
         tts.setSpeechRate(currentUserProfile.speechRate)
@@ -226,7 +203,9 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent == null || intent.action == ACTION_START) {
+        if (intent?.action == ACTION_PASSIVE_START) {
+            // Just keep the service alive for passive tracking
+        } else if (intent == null || intent.action == ACTION_START) {
             app.stepTrackerManager.startTracking()
             if (isTtsInitialized && currentUserProfile.announcementsEnabled && intent?.action == ACTION_START) {
                 announce("Workout started")
@@ -236,21 +215,11 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
             if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
                 announce("Workout paused")
             }
-            updateNotification(
-                app.stepTrackerManager.currentSteps.value, 
-                app.stepRepository.calculateDistance(app.stepTrackerManager.currentSteps.value, currentUserProfile), 
-                app.stepRepository.calculateCalories(app.stepRepository.calculateDistance(app.stepTrackerManager.currentSteps.value, currentUserProfile), currentUserProfile)
-            )
         } else if (intent.action == ACTION_RESUME) {
             app.stepTrackerManager.startTracking()
             if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
                 announce("Workout resumed")
             }
-            updateNotification(
-                app.stepTrackerManager.currentSteps.value, 
-                app.stepRepository.calculateDistance(app.stepTrackerManager.currentSteps.value, currentUserProfile), 
-                app.stepRepository.calculateCalories(app.stepRepository.calculateDistance(app.stepTrackerManager.currentSteps.value, currentUserProfile), currentUserProfile)
-            )
         } else if (intent.action == ACTION_STOP) {
             app.stepTrackerManager.stopTracking()
             if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
@@ -269,34 +238,34 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
                 isTtsInitialized = true
                 updateTtsSettings()
             }
-            
+                
             tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {}
-                
+                    
                 override fun onDone(utteranceId: String?) {
                     abandonAudioFocus()
                 }
-                
+                    
                 override fun onError(utteranceId: String?) {
                     abandonAudioFocus()
                 }
             })
         }
     }
-    
+        
     private fun requestAudioFocus(): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val audioAttributes = AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                 .build()
-                
+                    
             audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
                 .setAudioAttributes(audioAttributes)
                 .setAcceptsDelayedFocusGain(true)
                 .setOnAudioFocusChangeListener { }
                 .build()
-                
+                    
             val result = audioManager.requestAudioFocus(audioFocusRequest!!)
             return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         } else {
@@ -309,7 +278,7 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
             return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         }
     }
-    
+        
     private fun abandonAudioFocus() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             audioFocusRequest?.let {
@@ -330,7 +299,7 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
                 return
             }
         }
-        
+            
         if (requestAudioFocus()) {
             val params = android.os.Bundle()
             params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f)
@@ -357,8 +326,10 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
                 "Step Tracking Service Channel",
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_DEFAULT
             )
+            serviceChannel.setSound(null, null)
+            serviceChannel.setShowBadge(false)
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(serviceChannel)
         }

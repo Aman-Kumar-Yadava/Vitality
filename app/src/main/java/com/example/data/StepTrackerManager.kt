@@ -44,6 +44,13 @@ class StepTrackerManager(
             val record = repository.getRecordForDateSync(today)
             _currentSteps.value = record?.steps ?: 0
         }
+        initializePassiveTracking()
+    }
+
+    private fun initializePassiveTracking() {
+        stepSensor?.let {
+            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+        }
     }
 
     private val _isTracking = MutableStateFlow(false)
@@ -51,15 +58,13 @@ class StepTrackerManager(
 
     fun startTracking() {
         if (_isTracking.value) return
-        stepSensor?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
-            _isTracking.value = true
-        }
+        _isTracking.value = true
+        currentSessionStartTime = System.currentTimeMillis()
+        sessionStartTotalSteps = _currentSteps.value
     }
 
     fun stopTracking() {
         if (!_isTracking.value) return
-        sensorManager.unregisterListener(this)
         _isTracking.value = false
         saveCurrentSession()
     }
@@ -89,12 +94,6 @@ class StepTrackerManager(
                     updateWidget()
                 }
                 
-                // Session logic (split if > 5 minutes idle)
-                if (currentSessionStartTime == 0L || now - lastStepTime > 5 * 60 * 1000) {
-                    saveCurrentSession()
-                    currentSessionStartTime = now
-                    sessionStartTotalSteps = totalToday - 1 
-                }
                 lastStepTime = now
             }
         }

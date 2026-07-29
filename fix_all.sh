@@ -1,3 +1,44 @@
+#!/bin/bash
+cat << 'INNEREOF' > app/src/main/java/com/example/VitalityApplication.kt
+package com.example
+
+import android.app.Application
+import com.example.data.AppDatabase
+import com.example.data.StepRepository
+import com.example.data.StepTrackerManager
+import com.example.data.UserPreferencesRepository
+import com.example.data.dataStore
+
+class VitalityApplication : Application() {
+    lateinit var database: AppDatabase
+        private set
+        
+    lateinit var userPrefsRepository: UserPreferencesRepository
+        private set
+        
+    lateinit var stepRepository: StepRepository
+        private set
+
+    lateinit var stepTrackerManager: StepTrackerManager
+        private set
+
+    override fun onCreate() {
+        super.onCreate()
+        database = AppDatabase.getDatabase(this)
+        userPrefsRepository = UserPreferencesRepository(dataStore)
+        stepRepository = StepRepository(database.stepDao(), database.sessionDao(), userPrefsRepository)
+        stepTrackerManager = StepTrackerManager(this, stepRepository)
+    }
+}
+INNEREOF
+
+sed -i 's/OnboardingScreen(onComplete = { goal, height, weight, age, gender ->/OnboardingScreen(onComplete = { goal, height, weight, age, gender ->/' app/src/main/java/com/example/ui/RootScreen.kt
+sed -i 's/OnboardingScreen { goal, height, weight, age, gender, location ->/OnboardingScreen { goal, height, weight, age, gender ->/' app/src/main/java/com/example/ui/RootScreen.kt
+sed -i 's/viewModel.completeOnboarding(goal, height, weight, age, gender, location)/viewModel.completeOnboarding(goal, height, weight, age, gender)/' app/src/main/java/com/example/ui/RootScreen.kt
+sed -i '/var locationStr/d' app/src/main/java/com/example/ui/SettingsScreen.kt
+sed -i '/location = locationStr/d' app/src/main/java/com/example/ui/SettingsScreen.kt
+
+cat << 'INNEREOF' > app/src/main/java/com/example/viewmodel/MainViewModel.kt
 package com.example.viewmodel
 
 import android.app.Application
@@ -112,3 +153,4 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         stepTrackerManager.addMockSteps(500)
     }
 }
+INNEREOF

@@ -44,6 +44,9 @@ sealed class Screen(
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
     val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+    val isSettingsOpen = currentDestination?.route == Screen.Settings.route
     val items = listOf(Screen.Dashboard, Screen.History)
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -53,8 +56,6 @@ fun MainScreen(viewModel: MainViewModel) {
                     containerColor = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
                     tonalElevation = 0.dp
                 ) {
-                    val navBackStackEntry by navController.currentBackStackEntryAsState()
-                    val currentDestination = navBackStackEntry?.destination
                     items.forEach { screen ->
                         val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
                         NavigationBarItem(
@@ -98,7 +99,13 @@ fun MainScreen(viewModel: MainViewModel) {
         
         // Settings Button in top right with 50% transparency
         androidx.compose.material3.IconButton(
-            onClick = { navController.navigate(Screen.Settings.route) },
+            onClick = { 
+                if (isSettingsOpen) {
+                    navController.popBackStack()
+                } else {
+                    navController.navigate(Screen.Settings.route) 
+                }
+            },
             modifier = Modifier
                 .align(androidx.compose.ui.Alignment.TopEnd)
                 .padding(top = 48.dp, end = 16.dp)

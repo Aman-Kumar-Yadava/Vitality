@@ -15,7 +15,8 @@ data class UserProfile(
     val heightCm: Float = 170f,
     val weightKg: Float = 70f,
     val age: Int = 25,
-    val gender: String = "Male", // "Male", "Female", "Other"
+    val gender: String = "Male",
+    val location: String = "San Francisco",
     
     // Voice Announcement Settings
     val announcementsEnabled: Boolean = true,
@@ -23,7 +24,10 @@ data class UserProfile(
     val announceDistanceIntervalKm: Float = 1.0f,
     val announceCaloriesInterval: Float = 100f,
     val speechRate: Float = 1.0f,
-    val pitch: Float = 1.0f
+    val pitch: Float = 1.0f,
+    
+    // Widget Settings
+    val widgetOpacity: Float = 1.0f
 )
 
 class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
@@ -35,6 +39,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         val WEIGHT_KG = floatPreferencesKey("weight_kg")
         val AGE = intPreferencesKey("age")
         val GENDER = stringPreferencesKey("gender")
+        val LOCATION = stringPreferencesKey("location")
         
         val ANNOUNCEMENTS_ENABLED = booleanPreferencesKey("announcements_enabled")
         val ANNOUNCE_STEPS_INTERVAL = intPreferencesKey("announce_steps_interval")
@@ -42,6 +47,8 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         val ANNOUNCE_CALORIES_INTERVAL = floatPreferencesKey("announce_calories_interval")
         val SPEECH_RATE = floatPreferencesKey("speech_rate")
         val PITCH = floatPreferencesKey("pitch")
+        
+        val WIDGET_OPACITY = floatPreferencesKey("widget_opacity")
     }
     
     val userProfileFlow: Flow<UserProfile> = dataStore.data.map { preferences ->
@@ -52,13 +59,15 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             weightKg = preferences[PreferencesKeys.WEIGHT_KG] ?: 70f,
             age = preferences[PreferencesKeys.AGE] ?: 25,
             gender = preferences[PreferencesKeys.GENDER] ?: "Male",
+            location = preferences[PreferencesKeys.LOCATION] ?: "San Francisco",
             
             announcementsEnabled = preferences[PreferencesKeys.ANNOUNCEMENTS_ENABLED] ?: true,
             announceStepsInterval = preferences[PreferencesKeys.ANNOUNCE_STEPS_INTERVAL] ?: 1000,
             announceDistanceIntervalKm = preferences[PreferencesKeys.ANNOUNCE_DISTANCE_INTERVAL] ?: 1.0f,
             announceCaloriesInterval = preferences[PreferencesKeys.ANNOUNCE_CALORIES_INTERVAL] ?: 100f,
             speechRate = preferences[PreferencesKeys.SPEECH_RATE] ?: 1.0f,
-            pitch = preferences[PreferencesKeys.PITCH] ?: 1.0f
+            pitch = preferences[PreferencesKeys.PITCH] ?: 1.0f,
+            widgetOpacity = preferences[PreferencesKeys.WIDGET_OPACITY] ?: 1.0f
         )
     }
     
@@ -70,6 +79,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             preferences[PreferencesKeys.WEIGHT_KG] = profile.weightKg
             preferences[PreferencesKeys.AGE] = profile.age
             preferences[PreferencesKeys.GENDER] = profile.gender
+            preferences[PreferencesKeys.LOCATION] = profile.location
             
             preferences[PreferencesKeys.ANNOUNCEMENTS_ENABLED] = profile.announcementsEnabled
             preferences[PreferencesKeys.ANNOUNCE_STEPS_INTERVAL] = profile.announceStepsInterval
@@ -77,6 +87,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             preferences[PreferencesKeys.ANNOUNCE_CALORIES_INTERVAL] = profile.announceCaloriesInterval
             preferences[PreferencesKeys.SPEECH_RATE] = profile.speechRate
             preferences[PreferencesKeys.PITCH] = profile.pitch
+            preferences[PreferencesKeys.WIDGET_OPACITY] = profile.widgetOpacity
         }
     }
     

@@ -191,47 +191,73 @@ fun BarChart(records: List<DailyStepRecord>) {
     val maxSteps = (records.maxOfOrNull { it.steps } ?: 10000).coerceAtLeast(100)
     val barColor = MaterialTheme.colorScheme.primary
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
     
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(240.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(24.dp)
+            .height(280.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            Canvas(modifier = Modifier.fillMaxSize().padding(bottom = 24.dp)) {
-                val barWidth = size.width / (records.size * 2)
-                val spacing = barWidth
-                
-                records.forEachIndexed { index, record ->
-                    val x = index * (barWidth + spacing) + spacing / 2
-                    val heightRatio = record.steps.toFloat() / maxSteps.toFloat()
-                    val barHeight = size.height * heightRatio
-                    val y = size.height - barHeight
+        Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+            Text(
+                text = "Past 7 Days",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                Canvas(modifier = Modifier.fillMaxSize().padding(bottom = 24.dp, top = 16.dp)) {
+                    val barWidth = size.width / (records.size * 2)
+                    val spacing = barWidth
                     
-                    drawRoundRect(
-                        color = barColor,
-                        topLeft = Offset(x, y),
-                        size = Size(barWidth, barHeight),
-                        cornerRadius = CornerRadius(barWidth / 2, barWidth / 2)
-                    )
+                    // Draw horizontal grid lines
+                    val stepsCount = 4
+                    for (i in 0..stepsCount) {
+                        val y = size.height - (size.height * i / stepsCount)
+                        drawLine(
+                            color = gridColor,
+                            start = Offset(0f, y),
+                            end = Offset(size.width, y),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                    }
+                    
+                    records.forEachIndexed { index, record ->
+                        val x = index * (barWidth + spacing) + spacing / 2
+                        val heightRatio = record.steps.toFloat() / maxSteps.toFloat()
+                        val barHeight = size.height * heightRatio
+                        val y = size.height - barHeight
+                        
+                        drawRoundRect(
+                            color = barColor,
+                            topLeft = Offset(x, y),
+                            size = Size(barWidth, barHeight),
+                            cornerRadius = CornerRadius(barWidth / 2, barWidth / 2)
+                        )
+                    }
                 }
-            }
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                records.forEach { record ->
-                    val dayStr = record.dateString.takeLast(2)
-                    Text(
-                        text = dayStr,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = labelColor
-                    )
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    records.forEach { record ->
+                        // Display the day of the month
+                        val dateParts = record.dateString.split("-")
+                        val dayStr = if (dateParts.size == 3) dateParts[2] else record.dateString.takeLast(2)
+                        
+                        Text(
+                            text = dayStr,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = labelColor,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
         }

@@ -37,6 +37,8 @@ import androidx.glance.text.TextStyle
 import com.example.MainActivity
 import com.example.R
 import com.example.data.AppDatabase
+import com.example.data.dataStore
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -54,6 +56,8 @@ class HealthWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val db = AppDatabase.getDatabase(context)
+        val prefs = com.example.data.UserPreferencesRepository(context.dataStore)
+        val profile = prefs.userProfileFlow.first()
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val record = db.stepDao().getRecordForDateSync(today)
         val steps = record?.steps ?: 0
@@ -69,7 +73,7 @@ class HealthWidget : GlanceAppWidget() {
                 Box(
                     modifier = GlanceModifier
                         .fillMaxSize()
-                        .background(GlanceTheme.colors.surface)
+                        .background(GlanceTheme.colors.surface.getColor(context).copy(alpha = profile.widgetOpacity))
                         .cornerRadius(24.dp)
                         .padding(16.dp)
                         .clickable(actionStartActivity<MainActivity>()),
@@ -230,25 +234,5 @@ fun LargeWidgetContent(steps: Int, calories: Float, distance: Float) {
             }
         }
         Spacer(modifier = GlanceModifier.defaultWeight())
-        Row(
-            modifier = GlanceModifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Button(
-                text = "Log Water",
-                onClick = actionStartActivity<MainActivity>(),
-                modifier = GlanceModifier.defaultWeight().padding(end = 4.dp)
-            )
-            Button(
-                text = "Add Meal",
-                onClick = actionStartActivity<MainActivity>(),
-                modifier = GlanceModifier.defaultWeight().padding(start = 4.dp, end = 4.dp)
-            )
-            Button(
-                text = "Workout",
-                onClick = actionStartActivity<MainActivity>(),
-                modifier = GlanceModifier.defaultWeight().padding(start = 4.dp)
-            )
-        }
     }
 }

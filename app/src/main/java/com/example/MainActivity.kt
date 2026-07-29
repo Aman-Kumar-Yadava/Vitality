@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
                 val viewModel: MainViewModel = viewModel()
                 
                 DisposableEffect(Unit) {
-                    viewModel.startTracking()
+                    viewModel.startPassiveTracking()
                     onDispose {
                         // Let the service continue in the background
                         // viewModel.stopTracking()
@@ -79,6 +79,16 @@ class MainActivity : ComponentActivity() {
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             permissionsToRequest.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+        }
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
         
         if (permissionsToRequest.isNotEmpty()) {

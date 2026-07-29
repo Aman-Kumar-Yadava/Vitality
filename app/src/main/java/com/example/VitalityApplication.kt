@@ -7,17 +7,10 @@ import com.example.data.StepTrackerManager
 import com.example.data.UserPreferencesRepository
 import com.example.data.dataStore
 
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.ExistingPeriodicWorkPolicy
-import java.util.concurrent.TimeUnit
-import com.example.worker.WeatherWorker
-
 class VitalityApplication : Application() {
-
     lateinit var database: AppDatabase
         private set
-    
+        
     lateinit var userPrefsRepository: UserPreferencesRepository
         private set
         
@@ -33,18 +26,5 @@ class VitalityApplication : Application() {
         userPrefsRepository = UserPreferencesRepository(dataStore)
         stepRepository = StepRepository(database.stepDao(), database.sessionDao(), userPrefsRepository)
         stepTrackerManager = StepTrackerManager(this, stepRepository)
-        
-        scheduleWeatherAssistant()
-    }
-    
-    private fun scheduleWeatherAssistant() {
-        val workRequest = PeriodicWorkRequestBuilder<WeatherWorker>(4, TimeUnit.HOURS)
-            .build()
-            
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "WeatherAssistant",
-            ExistingPeriodicWorkPolicy.KEEP,
-            workRequest
-        )
     }
 }

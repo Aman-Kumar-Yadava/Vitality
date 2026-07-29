@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.DirectionsRun
+import androidx.compose.material.icons.rounded.CloudQueue
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -237,6 +238,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
         
         item {
             Spacer(modifier = Modifier.height(32.dp))
+            
             if (todaySessions.isNotEmpty()) {
                 Text(
                     text = "Today's Sessions",
