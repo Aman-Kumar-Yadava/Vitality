@@ -1,5 +1,6 @@
+#!/bin/bash
+cat << 'ROOTEOF' > app/src/main/java/com/example/ui/RootScreen.kt
 package com.example.ui
-import androidx.compose.ui.geometry.Offset
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -78,15 +79,14 @@ fun SplashScreen() {
         }
     }
     
-    val bgGradient = Brush.linearGradient(
+    val bgGradient = Brush.verticalGradient(
         colors = listOf(
-            Color(0xFFD4F0FF),
-            Color(0xFFFFDFE9),
-            Color(0xFFE5E0FF),
-            Color(0xFFFFE3D5)
-        ),
-        start = Offset(0f, 0f),
-        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+            Color(0xFFE3F2FD),
+            Color(0xFFFCE4EC),
+            Color(0xFFF3E5F5),
+            Color(0xFFFFF3E0),
+            Color(0xFFE3F2FD)
+        )
     )
 
     Box(
@@ -104,3 +104,4 @@ fun SplashScreen() {
         )
     }
 }
+ROOTEOF

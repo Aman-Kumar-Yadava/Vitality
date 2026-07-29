@@ -1,3 +1,5 @@
+#!/bin/bash
+cat << 'HISTORYEOF' > app/src/main/java/com/example/ui/HistoryScreen.kt
 package com.example.ui
 
 import androidx.compose.foundation.Canvas
@@ -23,21 +25,20 @@ import com.example.viewmodel.MainViewModel
 
 @Composable
 fun HistoryScreen(viewModel: MainViewModel) {
-    val history by viewModel.allRecords.collectAsStateWithLifecycle()
+    val history by viewModel.historyRecords.collectAsStateWithLifecycle()
     
     val totalSteps = history.sumOf { it.steps }
     val totalDistance = history.map { it.distanceKm }.sum()
     val totalCalories = history.map { it.caloriesBurned }.sum()
 
-    val bgGradient = Brush.linearGradient(
+    val bgGradient = Brush.verticalGradient(
         colors = listOf(
-            Color(0xFFD4F0FF),
-            Color(0xFFFFDFE9),
-            Color(0xFFE5E0FF),
-            Color(0xFFFFE3D5)
-        ),
-        start = Offset(0f, 0f),
-        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+            Color(0xFFE3F2FD), // Sky blue
+            Color(0xFFFCE4EC), // Light pink
+            Color(0xFFF3E5F5), // Lavender
+            Color(0xFFFFF3E0), // Peach
+            Color(0xFFE3F2FD)  // Sky blue at bottom
+        )
     )
 
     Box(modifier = Modifier.fillMaxSize().background(bgGradient)) {
@@ -295,3 +296,4 @@ fun HistoryItemCard(record: DailyStepRecord) {
         }
     }
 }
+HISTORYEOF

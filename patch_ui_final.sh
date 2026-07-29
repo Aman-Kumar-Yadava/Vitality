@@ -1,3 +1,7 @@
+#!/bin/bash
+
+# Overwrite DashboardScreen.kt
+cat << 'DASHBOARDEOF' > app/src/main/java/com/example/ui/DashboardScreen.kt
 package com.example.ui
 
 import androidx.compose.foundation.Canvas
@@ -169,10 +173,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
                         val ringGradient = Brush.sweepGradient(
                             0.0f to Color(0xFF7000FF), // Deep purple
                             0.375f to Color(0xFFFF007F), // Vibrant pink
-                            0.75f to Color(0xFFFF8947), // Bright orange
-                            0.85f to Color(0xFFFF8947), // Maintain orange for end cap
-                            0.95f to Color(0xFF7000FF), // Prevent wrap-around bleed
-                            1.0f to Color(0xFF7000FF) // Pure purple for start cap
+                            0.75f to Color(0xFFFF8947) // Bright orange
                         )
                         
                         Canvas(modifier = Modifier.size(260.dp)) {
@@ -413,3 +414,22 @@ fun StatCard(
         }
     }
 }
+DASHBOARDEOF
+
+# Apply unified background to HistoryScreen, SettingsScreen, OnboardingScreen, and RootScreen
+for file in app/src/main/java/com/example/ui/HistoryScreen.kt app/src/main/java/com/example/ui/SettingsScreen.kt app/src/main/java/com/example/ui/OnboardingScreen.kt app/src/main/java/com/example/ui/RootScreen.kt; do
+    grep -q "import androidx.compose.ui.geometry.Offset" "$file" || sed -i '1a import androidx.compose.ui.geometry.Offset' "$file"
+    
+    sed -i '/val bgGradient = Brush.verticalGradient(/,/^    )/c\
+    val bgGradient = Brush.linearGradient(\
+        colors = listOf(\
+            Color(0xFFD4F0FF),\
+            Color(0xFFFFDFE9),\
+            Color(0xFFE5E0FF),\
+            Color(0xFFFFE3D5)\
+        ),\
+        start = Offset(0f, 0f),\
+        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)\
+    )' "$file"
+done
+

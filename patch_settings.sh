@@ -1,5 +1,6 @@
+#!/bin/bash
+cat << 'SETTINGSEOF' > app/src/main/java/com/example/ui/SettingsScreen.kt
 package com.example.ui
-import androidx.compose.ui.geometry.Offset
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
@@ -27,15 +28,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
     val coroutineScope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
     
-    val bgGradient = Brush.linearGradient(
+    val bgGradient = Brush.verticalGradient(
         colors = listOf(
-            Color(0xFFD4F0FF),
-            Color(0xFFFFDFE9),
-            Color(0xFFE5E0FF),
-            Color(0xFFFFE3D5)
-        ),
-        start = Offset(0f, 0f),
-        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+            Color(0xFFE3F2FD), // Sky blue
+            Color(0xFFFCE4EC), // Light pink
+            Color(0xFFF3E5F5), // Lavender
+            Color(0xFFFFF3E0), // Peach
+            Color(0xFFE3F2FD)  // Sky blue at bottom
+        )
     )
         
     Scaffold(
@@ -183,3 +183,4 @@ fun SettingsScreen(viewModel: MainViewModel) {
         }
     }
 }
+SETTINGSEOF

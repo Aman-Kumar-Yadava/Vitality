@@ -1,3 +1,5 @@
+#!/bin/bash
+cat << 'THEMEOF' > app/src/main/java/com/example/ui/DashboardScreen.kt
 package com.example.ui
 
 import androidx.compose.foundation.Canvas
@@ -10,24 +12,22 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.DirectionsRun
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -54,19 +54,19 @@ fun DashboardScreen(viewModel: MainViewModel) {
     val distance = todayRecord?.distanceKm ?: 0f
     val calories = todayRecord?.caloriesBurned ?: 0f
 
+    val currentLocation = userProfile.location
+
     var tapCount by remember { mutableIntStateOf(0) }
     var lastTapTime by remember { mutableLongStateOf(0L) }
 
-    // Exactly matching the background gradient from the reference
-    val bgGradient = Brush.linearGradient(
+    val bgGradient = Brush.verticalGradient(
         colors = listOf(
-            Color(0xFFD4F0FF), // Top Left - light blue
-            Color(0xFFFFDFE9), // Top Right - light pink
-            Color(0xFFE5E0FF), // Bottom Left - soft purple
-            Color(0xFFFFE3D5)  // Bottom Right - Peach
-        ),
-        start = Offset(0f, 0f),
-        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+            Color(0xFFE3F2FD), // Sky blue
+            Color(0xFFFCE4EC), // Light pink
+            Color(0xFFF3E5F5), // Lavender
+            Color(0xFFFFF3E0), // Peach
+            Color(0xFFE3F2FD)  // Sky blue at bottom
+        )
     )
 
     Box(modifier = Modifier.fillMaxSize().background(bgGradient)) {
@@ -81,7 +81,29 @@ fun DashboardScreen(viewModel: MainViewModel) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Spacer(modifier = Modifier.width(40.dp))
+                    // Location Chip
+                    Row(
+                        modifier = Modifier
+                            .background(Color.White.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.LocationOn,
+                            contentDescription = "Location",
+                            modifier = Modifier.size(16.dp),
+                            tint = Color.DarkGray
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = currentLocation.ifEmpty { "Location" },
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.DarkGray
+                        )
+                    }
+                    
+                    // Settings icon is handled in MainScreen, so we can leave empty space here or add a notification icon if we wanted, but we'll leave it to MainScreen.
                 }
                 
                 Text(
@@ -105,7 +127,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
                 Spacer(modifier = Modifier.height(4.dp))
                 
                 Text(
-                    text = "Let's keep going! You're doing great \uD83D\uDCAA",
+                    text = "Let's keep going! You're doing great \uD83D\uDCAA", // Muscle emoji
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.DarkGray
                 )
@@ -114,14 +136,14 @@ fun DashboardScreen(viewModel: MainViewModel) {
                 
                 val btnGradient = Brush.horizontalGradient(
                     colors = if (isTracking) listOf(Color(0xFFFF512F), Color(0xFFDD2476)) 
-                             else listOf(Color(0xFF6143FF), Color(0xFFF72585), Color(0xFFFF8947))
+                             else listOf(Color(0xFF7F00FF), Color(0xFFFF007F), Color(0xFFFF8C00))
                 )
                 
                 Button(
                     onClick = {
                         if (isTracking) viewModel.stopTracking() else viewModel.startTracking()
                     },
-                    modifier = Modifier.fillMaxWidth(0.85f).height(64.dp),
+                    modifier = Modifier.fillMaxWidth(0.8f).height(64.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                     contentPadding = PaddingValues(),
                     elevation = ButtonDefaults.buttonElevation(
@@ -161,38 +183,30 @@ fun DashboardScreen(viewModel: MainViewModel) {
             
             item {
                 // Main Ring Card
-                GlassCard(modifier = Modifier.fillMaxWidth().height(340.dp)) {
+                GlassCard(modifier = Modifier.fillMaxWidth().height(320.dp)) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        val trackColor = Color(0xFFE0E0E0).copy(alpha = 0.4f)
-                        
-                        // Smooth gradient for the circular progress bar matching the reference image perfectly
                         val ringGradient = Brush.sweepGradient(
-                            0.0f to Color(0xFF7000FF), // Deep purple
-                            0.375f to Color(0xFFFF007F), // Vibrant pink
-                            0.75f to Color(0xFFFF8947), // Bright orange
-                            0.85f to Color(0xFFFF8947), // Maintain orange for end cap
-                            0.95f to Color(0xFF7000FF), // Prevent wrap-around bleed
-                            1.0f to Color(0xFF7000FF) // Pure purple for start cap
+                            0.0f to Color(0xFF7F00FF),
+                            0.5f to Color(0xFFFF007F),
+                            1.0f to Color(0xFFFF8C00)
                         )
+                        val trackColor = Color(0xFFE0E0E0).copy(alpha = 0.5f)
                         
-                        Canvas(modifier = Modifier.size(260.dp)) {
-                            // Rotate canvas so startAngle=0 matches 135 degrees, making the sweep gradient smooth
-                            rotate(135f) {
-                                drawArc(
-                                    color = trackColor,
-                                    startAngle = 0f,
-                                    sweepAngle = 270f,
-                                    useCenter = false,
-                                    style = Stroke(width = 24.dp.toPx(), cap = StrokeCap.Round)
-                                )
-                                drawArc(
-                                    brush = ringGradient,
-                                    startAngle = 0f,
-                                    sweepAngle = 270f * progress,
-                                    useCenter = false,
-                                    style = Stroke(width = 24.dp.toPx(), cap = StrokeCap.Round)
-                                )
-                            }
+                        Canvas(modifier = Modifier.size(240.dp)) {
+                            drawArc(
+                                color = trackColor,
+                                startAngle = 135f,
+                                sweepAngle = 270f,
+                                useCenter = false,
+                                style = Stroke(width = 24.dp.toPx(), cap = StrokeCap.Round)
+                            )
+                            drawArc(
+                                brush = ringGradient,
+                                startAngle = 135f,
+                                sweepAngle = 270f * progress,
+                                useCenter = false,
+                                style = Stroke(width = 24.dp.toPx(), cap = StrokeCap.Round)
+                            )
                         }
                         
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -283,9 +297,9 @@ fun DashboardScreen(viewModel: MainViewModel) {
 fun GlassCard(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(32.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.5f)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.7f)),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.6f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.8f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize(), content = content)
@@ -346,19 +360,20 @@ fun StatCard(
                 .fillMaxSize()
                 .background(Brush.linearGradient(colors = colors))
         ) {
+            // Subtle wave decoration at bottom
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val path = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(0f, size.height * 0.65f)
+                    moveTo(0f, size.height * 0.7f)
                     cubicTo(
-                        size.width * 0.3f, size.height * 0.55f,
-                        size.width * 0.7f, size.height * 0.85f,
-                        size.width, size.height * 0.7f
+                        size.width * 0.3f, size.height * 0.6f,
+                        size.width * 0.7f, size.height * 0.9f,
+                        size.width, size.height * 0.75f
                     )
                     lineTo(size.width, size.height)
                     lineTo(0f, size.height)
                     close()
                 }
-                drawPath(path, color = Color.White.copy(alpha = 0.15f))
+                drawPath(path, color = Color.White.copy(alpha = 0.2f))
             }
             
             Column(
@@ -374,14 +389,15 @@ fun StatCard(
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .background(Color.White.copy(alpha = 0.25f), CircleShape),
+                            .background(Color.White.copy(alpha = 0.2f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(imageVector = icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
                     }
                     
+                    // Arrow
                     Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                        imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Rounded.ArrowForward,
                         contentDescription = null,
                         tint = Color.White.copy(alpha = 0.7f),
                         modifier = Modifier.size(20.dp)
@@ -413,3 +429,4 @@ fun StatCard(
         }
     }
 }
+THEMEOF

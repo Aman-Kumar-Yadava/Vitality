@@ -1,5 +1,6 @@
+#!/bin/bash
+cat << 'ONBOARDEOF' > app/src/main/java/com/example/ui/OnboardingScreen.kt
 package com.example.ui
-import androidx.compose.ui.geometry.Offset
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -30,15 +31,14 @@ fun OnboardingScreen(onComplete: (Int, Float, Float, Int, String) -> Unit) {
     var selectedGender by remember { mutableStateOf(genders[0]) }
     var expanded by remember { mutableStateOf(false) }
     
-    val bgGradient = Brush.linearGradient(
+    val bgGradient = Brush.verticalGradient(
         colors = listOf(
-            Color(0xFFD4F0FF),
-            Color(0xFFFFDFE9),
-            Color(0xFFE5E0FF),
-            Color(0xFFFFE3D5)
-        ),
-        start = Offset(0f, 0f),
-        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+            Color(0xFFE3F2FD),
+            Color(0xFFFCE4EC),
+            Color(0xFFF3E5F5),
+            Color(0xFFFFF3E0),
+            Color(0xFFE3F2FD)
+        )
     )
     
     Scaffold(
@@ -213,3 +213,4 @@ fun OnboardingScreen(onComplete: (Int, Float, Float, Int, String) -> Unit) {
         }
     }
 }
+ONBOARDEOF

@@ -1,6 +1,6 @@
+#!/bin/bash
+cat << 'MAINEOF' > app/src/main/java/com/example/ui/MainScreen.kt
 package com.example.ui
-
-import androidx.compose.foundation.border
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -173,3 +173,4 @@ fun MainScreen(viewModel: MainViewModel) {
         }
     }
 }
+MAINEOF
