@@ -29,6 +29,9 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.example.ui.components.PremiumAnimatedRing
+import com.example.ui.components.PremiumAnimatedWaveCard
+import com.example.ui.components.PulsingRunningIcon
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -56,6 +59,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
 
     var tapCount by remember { mutableIntStateOf(0) }
     var lastTapTime by remember { mutableLongStateOf(0L) }
+    var showSecretDialog by remember { mutableStateOf(false) }
 
     val bgGradient = Brush.linearGradient(
         colors = listOf(
@@ -78,11 +82,11 @@ fun DashboardScreen(viewModel: MainViewModel) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            contentPadding = PaddingValues(top = 48.dp, bottom = 120.dp)
+            contentPadding = PaddingValues(top = 48.dp, bottom = 96.dp)
         ) {
             item {
                 Column(
-                    modifier = Modifier.fillMaxWidth().height(screenHeight - 250.dp),
+                    modifier = Modifier.fillMaxWidth().height(screenHeight - 48.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(
@@ -104,7 +108,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
                             val now = System.currentTimeMillis()
                             if (now - lastTapTime > 1000) tapCount = 1 else tapCount++
                             if (tapCount >= 5) {
-                                viewModel.addMockSteps()
+                                showSecretDialog = true
                                 tapCount = 0
                             }
                             lastTapTime = now
@@ -157,7 +161,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = if (isTracking) "Pause Workout" else "Start Workout", 
+                                    text = if (isTracking) "Pause Session" else "Start Session", 
                                     color = Color.White, 
                                     fontWeight = FontWeight.SemiBold, 
                                     fontSize = 16.sp
@@ -171,56 +175,27 @@ fun DashboardScreen(viewModel: MainViewModel) {
                     // Main Ring Card
                     GlassCard(modifier = Modifier.fillMaxWidth().weight(1f), noiseLevel = userProfile.uiNoiseLevel) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            val trackColor = Color(0xFFE0E0E0).copy(alpha = 0.4f)
-                            
-                            // Smooth gradient for the circular progress bar matching the reference image perfectly
-                            val ringGradient = Brush.sweepGradient(
-                                0.0f to Color(0xFF7000FF), // Deep purple
-                                0.375f to Color(0xFFFF007F), // Vibrant pink
-                                0.75f to Color(0xFFFF8947), // Bright orange
-                                0.85f to Color(0xFFFF8947), // Maintain orange for end cap
-                                0.95f to Color(0xFF7000FF), // Prevent wrap-around bleed
-                                1.0f to Color(0xFF7000FF) // Pure purple for start cap
-                            )
-                            
                             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                                 val minDim = minOf(maxWidth, maxHeight)
                                 val canvasSize = minDim * 0.8f
-                                Canvas(modifier = Modifier.size(canvasSize).align(Alignment.Center)) {
-                                    rotate(135f) {
-                                        drawArc(
-                                            color = trackColor,
-                                            startAngle = 0f,
-                                            sweepAngle = 270f,
-                                            useCenter = false,
-                                            style = Stroke(width = 20.dp.toPx(), cap = StrokeCap.Round)
-                                        )
-                                        drawArc(
-                                            brush = ringGradient,
-                                            startAngle = 0f,
-                                            sweepAngle = 270f * progress,
-                                            useCenter = false,
-                                            style = Stroke(width = 20.dp.toPx(), cap = StrokeCap.Round)
-                                        )
-                                    }
-                                }
+                                PremiumAnimatedRing(
+                                    progress = progress,
+                                    modifier = Modifier.size(canvasSize).align(Alignment.Center),
+                                    trackColor = Color(0xFFE0E0E0).copy(alpha = 0.4f),
+                                    strokeWidth = 20.dp
+                                )
                             }
                             
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Rounded.DirectionsRun,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(36.dp),
-                                    tint = Color(0xFF7F00FF)
-                                )
+                                PulsingRunningIcon(modifier = Modifier.size(36.dp))
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "$steps",
+                                    text = "%,d".format(steps),
                                     style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Black),
                                     color = Color(0xFF1E1E1E)
                                 )
                                 Text(
-                                    text = "/ $goal steps",
+                                    text = "/ %,d steps".format(goal),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Color.DarkGray
                                 )
@@ -248,8 +223,8 @@ fun DashboardScreen(viewModel: MainViewModel) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        StatCard(
-                            modifier = Modifier.weight(1f).height(100.dp),
+                        PremiumAnimatedWaveCard(
+                            modifier = Modifier.weight(1f).height(130.dp),
                             title = "Distance",
                             value = String.format("%.2f", distance),
                             unit = "km",
@@ -257,8 +232,8 @@ fun DashboardScreen(viewModel: MainViewModel) {
                             colors = listOf(Color(0xFF9D50BB), Color(0xFF6E48AA)),
                             noiseLevel = userProfile.uiNoiseLevel
                         )
-                        StatCard(
-                            modifier = Modifier.weight(1f).height(100.dp),
+                        PremiumAnimatedWaveCard(
+                            modifier = Modifier.weight(1f).height(130.dp),
                             title = "Calories",
                             value = String.format("%.0f", calories),
                             unit = "kcal",
@@ -267,19 +242,34 @@ fun DashboardScreen(viewModel: MainViewModel) {
                             noiseLevel = userProfile.uiNoiseLevel
                         )
                     }
+                    
+                    Spacer(modifier = Modifier.height(96.dp))
                 }
             }
             
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-                if (todaySessions.isNotEmpty()) {
-                    Text(
-                        text = "Today's Sessions",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                        textAlign = TextAlign.Start,
-                        color = Color(0xFF1E1E1E)
-                    )
+                Text(
+                    text = "Today's Sessions",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    textAlign = TextAlign.Start,
+                    color = Color(0xFF1E1E1E)
+                )
+                
+                if (todaySessions.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No sessions recorded today.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.DarkGray
+                        )
+                    }
                 }
             }
             
@@ -288,6 +278,16 @@ fun DashboardScreen(viewModel: MainViewModel) {
                 SessionCard(session, userProfile.uiNoiseLevel)
                 Spacer(modifier = Modifier.height(12.dp))
             }
+        }
+        
+        if (showSecretDialog) {
+            SecretDevDialog(
+                onDismiss = { showSecretDialog = false },
+                onSave = { s, d, c ->
+                    viewModel.setCustomActivity(s, d, c)
+                    showSecretDialog = false
+                }
+            )
         }
     }
 }
@@ -427,4 +427,81 @@ fun StatCard(
             }
         }
     }
+}
+
+@Composable
+fun SecretDevDialog(onDismiss: () -> Unit, onSave: (Int, Float, Float) -> Unit) {
+    var password by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+    var stepsInput by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+    var distInput by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+    var calInput by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+    var errorMsg by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { androidx.compose.material3.Text("Developer Console") },
+        text = {
+            androidx.compose.foundation.layout.Column(
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+            ) {
+                androidx.compose.material3.OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it; errorMsg = "" },
+                    label = { androidx.compose.material3.Text("Password") },
+                    isError = errorMsg.isNotEmpty(),
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword)
+                )
+                if (errorMsg.isNotEmpty()) {
+                    androidx.compose.material3.Text(
+                        errorMsg,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                    )
+                }
+                if (password == "4921") {
+                    androidx.compose.material3.OutlinedTextField(
+                        value = stepsInput,
+                        onValueChange = { stepsInput = it },
+                        label = { androidx.compose.material3.Text("Custom Steps") },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = distInput,
+                        onValueChange = { distInput = it },
+                        label = { androidx.compose.material3.Text("Custom Distance (km)") },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = calInput,
+                        onValueChange = { calInput = it },
+                        label = { androidx.compose.material3.Text("Custom Calories (kcal)") },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = {
+                if (password != "4921") {
+                    errorMsg = "Incorrect Password"
+                } else {
+                    val s = stepsInput.toIntOrNull() ?: 0
+                    val d = distInput.toFloatOrNull() ?: 0f
+                    val c = calInput.toFloatOrNull() ?: 0f
+                    onSave(s, d, c)
+                }
+            }) {
+                androidx.compose.material3.Text("Save")
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                androidx.compose.material3.Text("Cancel")
+            }
+        },
+        containerColor = androidx.compose.ui.graphics.Color(0xFFFDFDFD),
+        titleContentColor = androidx.compose.ui.graphics.Color(0xFF1E1E1E),
+        textContentColor = androidx.compose.ui.graphics.Color(0xFF1E1E1E)
+    )
 }

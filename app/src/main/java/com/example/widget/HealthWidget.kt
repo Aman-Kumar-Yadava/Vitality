@@ -4,13 +4,11 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.glance.Button
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
-import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
@@ -39,7 +37,6 @@ import com.example.R
 import com.example.data.AppDatabase
 import com.example.data.dataStore
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -73,14 +70,14 @@ class HealthWidget : GlanceAppWidget() {
                 Box(
                     modifier = GlanceModifier
                         .fillMaxSize()
-                        .background(GlanceTheme.colors.surface.getColor(context).copy(alpha = profile.widgetOpacity))
+                        .background(ImageProvider(R.drawable.widget_gradient_bg))
                         .cornerRadius(24.dp)
-                        .padding(16.dp)
+                        .padding(12.dp)
                         .clickable(actionStartActivity<MainActivity>()),
                     contentAlignment = Alignment.Center
                 ) {
                     if (isSmall) {
-                        SmallWidgetContent(steps)
+                        SmallWidgetContent(steps, calories, distance)
                     } else if (isWide) {
                         WideWidgetContent(steps, calories, distance)
                     } else {
@@ -93,29 +90,76 @@ class HealthWidget : GlanceAppWidget() {
 }
 
 @Composable
-fun SmallWidgetContent(steps: Int) {
+fun SmallWidgetContent(steps: Int, calories: Float, distance: Float) {
     Column(
         modifier = GlanceModifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "STEPS",
-            style = TextStyle(
-                color = GlanceTheme.colors.onSurfaceVariant,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold
+        // Steps Row with Icon
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                provider = ImageProvider(R.drawable.ic_widget_steps),
+                contentDescription = "Steps",
+                modifier = GlanceModifier.size(16.dp)
             )
-        )
-        Spacer(modifier = GlanceModifier.height(8.dp))
-        Text(
-            text = "$steps",
-            style = TextStyle(
-                color = GlanceTheme.colors.primary,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
+            Spacer(modifier = GlanceModifier.width(4.dp))
+            Text(
+                text = String.format("%,d", steps),
+                style = TextStyle(
+                    color = ColorProvider(day = androidx.compose.ui.graphics.Color.White, night = androidx.compose.ui.graphics.Color.White),
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold
+                )
             )
-        )
+        }
+        
+        Spacer(modifier = GlanceModifier.height(6.dp))
+        
+        // Calories & Distance Row with Icons instead of words for short dimension
+        Row(
+            modifier = GlanceModifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    provider = ImageProvider(R.drawable.ic_widget_calories),
+                    contentDescription = "Calories",
+                    modifier = GlanceModifier.size(13.dp)
+                )
+                Spacer(modifier = GlanceModifier.width(2.dp))
+                Text(
+                    text = String.format("%.0f", calories),
+                    style = TextStyle(
+                        color = ColorProvider(day = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.9f), night = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.9f)),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                )
+            }
+            
+            Spacer(modifier = GlanceModifier.width(6.dp))
+            
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    provider = ImageProvider(R.drawable.ic_widget_distance),
+                    contentDescription = "Distance",
+                    modifier = GlanceModifier.size(13.dp)
+                )
+                Spacer(modifier = GlanceModifier.width(2.dp))
+                Text(
+                    text = String.format("%.1fkm", distance),
+                    style = TextStyle(
+                        color = ColorProvider(day = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.9f), night = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.9f)),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                )
+            }
+        }
     }
 }
 
@@ -129,19 +173,28 @@ fun WideWidgetContent(steps: Int, calories: Float, distance: Float) {
             modifier = GlanceModifier.defaultWeight(),
             horizontalAlignment = Alignment.Start
         ) {
-            Text(
-                text = "Today's Steps",
-                style = TextStyle(
-                    color = GlanceTheme.colors.onSurfaceVariant,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    provider = ImageProvider(R.drawable.ic_widget_steps),
+                    contentDescription = "Steps",
+                    modifier = GlanceModifier.size(18.dp)
                 )
-            )
+                Spacer(modifier = GlanceModifier.width(6.dp))
+                Text(
+                    text = "Steps",
+                    style = TextStyle(
+                        color = ColorProvider(day = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f), night = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f)),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                )
+            }
+            Spacer(modifier = GlanceModifier.height(4.dp))
             Text(
-                text = "$steps",
+                text = String.format("%,d", steps),
                 style = TextStyle(
-                    color = GlanceTheme.colors.primary,
-                    fontSize = 32.sp,
+                    color = ColorProvider(day = androidx.compose.ui.graphics.Color.White, night = androidx.compose.ui.graphics.Color.White),
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Bold
                 )
             )
@@ -150,23 +203,39 @@ fun WideWidgetContent(steps: Int, calories: Float, distance: Float) {
             modifier = GlanceModifier.defaultWeight(),
             horizontalAlignment = Alignment.End
         ) {
-            Text(
-                text = "${String.format("%.0f", calories)} kcal",
-                style = TextStyle(
-                    color = GlanceTheme.colors.onSurface,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    provider = ImageProvider(R.drawable.ic_widget_calories),
+                    contentDescription = "Calories",
+                    modifier = GlanceModifier.size(15.dp)
                 )
-            )
-            Spacer(modifier = GlanceModifier.height(4.dp))
-            Text(
-                text = "${String.format("%.2f", distance)} km",
-                style = TextStyle(
-                    color = GlanceTheme.colors.onSurface,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
+                Spacer(modifier = GlanceModifier.width(4.dp))
+                Text(
+                    text = String.format("%.0f kcal", calories),
+                    style = TextStyle(
+                        color = ColorProvider(day = androidx.compose.ui.graphics.Color.White, night = androidx.compose.ui.graphics.Color.White),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 )
-            )
+            }
+            Spacer(modifier = GlanceModifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    provider = ImageProvider(R.drawable.ic_widget_distance),
+                    contentDescription = "Distance",
+                    modifier = GlanceModifier.size(15.dp)
+                )
+                Spacer(modifier = GlanceModifier.width(4.dp))
+                Text(
+                    text = String.format("%.2f km", distance),
+                    style = TextStyle(
+                        color = ColorProvider(day = androidx.compose.ui.graphics.Color.White, night = androidx.compose.ui.graphics.Color.White),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                )
+            }
         }
     }
 }
@@ -177,21 +246,36 @@ fun LargeWidgetContent(steps: Int, calories: Float, distance: Float) {
         modifier = GlanceModifier.fillMaxSize(),
         horizontalAlignment = Alignment.Start
     ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                provider = ImageProvider(R.drawable.ic_widget_steps),
+                contentDescription = "Activity",
+                modifier = GlanceModifier.size(20.dp)
+            )
+            Spacer(modifier = GlanceModifier.width(6.dp))
+            Text(
+                text = "Today's Activity",
+                style = TextStyle(
+                    color = ColorProvider(day = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f), night = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f)),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            )
+        }
+        Spacer(modifier = GlanceModifier.height(16.dp))
         Text(
-            text = "Activity Dashboard",
+            text = String.format("%,d", steps),
             style = TextStyle(
-                color = GlanceTheme.colors.onSurfaceVariant,
-                fontSize = 16.sp,
+                color = ColorProvider(day = androidx.compose.ui.graphics.Color.White, night = androidx.compose.ui.graphics.Color.White),
+                fontSize = 36.sp,
                 fontWeight = FontWeight.Bold
             )
         )
-        Spacer(modifier = GlanceModifier.height(16.dp))
         Text(
-            text = "$steps Steps",
+            text = "steps taken today",
             style = TextStyle(
-                color = GlanceTheme.colors.primary,
-                fontSize = 40.sp,
-                fontWeight = FontWeight.Bold
+                color = ColorProvider(day = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f), night = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f)),
+                fontSize = 13.sp
             )
         )
         Spacer(modifier = GlanceModifier.height(24.dp))
@@ -199,35 +283,53 @@ fun LargeWidgetContent(steps: Int, calories: Float, distance: Float) {
             modifier = GlanceModifier.fillMaxWidth()
         ) {
             Column(modifier = GlanceModifier.defaultWeight()) {
-                Text(
-                    text = "Calories",
-                    style = TextStyle(
-                        color = GlanceTheme.colors.onSurfaceVariant,
-                        fontSize = 14.sp
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_widget_calories),
+                        contentDescription = "Calories",
+                        modifier = GlanceModifier.size(16.dp)
                     )
-                )
+                    Spacer(modifier = GlanceModifier.width(4.dp))
+                    Text(
+                        text = "Calories",
+                        style = TextStyle(
+                            color = ColorProvider(day = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f), night = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f)),
+                            fontSize = 13.sp
+                        )
+                    )
+                }
+                Spacer(modifier = GlanceModifier.height(4.dp))
                 Text(
                     text = String.format("%.0f kcal", calories),
                     style = TextStyle(
-                        color = GlanceTheme.colors.onSurface,
-                        fontSize = 20.sp,
+                        color = ColorProvider(day = androidx.compose.ui.graphics.Color.White, night = androidx.compose.ui.graphics.Color.White),
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Medium
                     )
                 )
             }
             Column(modifier = GlanceModifier.defaultWeight()) {
-                Text(
-                    text = "Distance",
-                    style = TextStyle(
-                        color = GlanceTheme.colors.onSurfaceVariant,
-                        fontSize = 14.sp
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_widget_distance),
+                        contentDescription = "Distance",
+                        modifier = GlanceModifier.size(16.dp)
                     )
-                )
+                    Spacer(modifier = GlanceModifier.width(4.dp))
+                    Text(
+                        text = "Distance",
+                        style = TextStyle(
+                            color = ColorProvider(day = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f), night = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f)),
+                            fontSize = 13.sp
+                        )
+                    )
+                }
+                Spacer(modifier = GlanceModifier.height(4.dp))
                 Text(
                     text = String.format("%.2f km", distance),
                     style = TextStyle(
-                        color = GlanceTheme.colors.onSurface,
-                        fontSize = 20.sp,
+                        color = ColorProvider(day = androidx.compose.ui.graphics.Color.White, night = androidx.compose.ui.graphics.Color.White),
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Medium
                     )
                 )

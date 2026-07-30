@@ -1,156 +1,65 @@
 #!/bin/bash
-cat << 'INNEREOF' > app/src/main/java/com/example/VitalityApplication.kt
-package com.example
+cat << 'INNER_EOF' > app/src/main/java/com/example/ui/components/PremiumAnimatedRing.kt
+package com.example.ui.components
 
-import android.app.Application
-import com.example.data.AppDatabase
-import com.example.data.StepRepository
-import com.example.data.StepTrackerManager
-import com.example.data.UserPreferencesRepository
-import com.example.data.dataStore
-
-class VitalityApplication : Application() {
-    lateinit var database: AppDatabase
-        private set
-        
-    lateinit var userPrefsRepository: UserPreferencesRepository
-        private set
-        
-    lateinit var stepRepository: StepRepository
-        private set
-
-    lateinit var stepTrackerManager: StepTrackerManager
-        private set
-
-    override fun onCreate() {
-        super.onCreate()
-        database = AppDatabase.getDatabase(this)
-        userPrefsRepository = UserPreferencesRepository(dataStore)
-        stepRepository = StepRepository(database.stepDao(), database.sessionDao(), userPrefsRepository)
-        stepTrackerManager = StepTrackerManager(this, stepRepository)
-    }
-}
-INNEREOF
-
-sed -i 's/OnboardingScreen(onComplete = { goal, height, weight, age, gender ->/OnboardingScreen(onComplete = { goal, height, weight, age, gender ->/' app/src/main/java/com/example/ui/RootScreen.kt
-sed -i 's/OnboardingScreen { goal, height, weight, age, gender, location ->/OnboardingScreen { goal, height, weight, age, gender ->/' app/src/main/java/com/example/ui/RootScreen.kt
-sed -i 's/viewModel.completeOnboarding(goal, height, weight, age, gender, location)/viewModel.completeOnboarding(goal, height, weight, age, gender)/' app/src/main/java/com/example/ui/RootScreen.kt
-sed -i '/var locationStr/d' app/src/main/java/com/example/ui/SettingsScreen.kt
-sed -i '/location = locationStr/d' app/src/main/java/com/example/ui/SettingsScreen.kt
-
-cat << 'INNEREOF' > app/src/main/java/com/example/viewmodel/MainViewModel.kt
-package com.example.viewmodel
-
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
-import com.example.data.AppDatabase
-import com.example.data.DailyStepRecord
-import com.example.data.StepRepository
-import com.example.data.StepTrackerManager
-import com.example.data.WalkingSession
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.DirectionsRun
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.random.Random
+INNER_EOF
+tail -n +31 app/src/main/java/com/example/ui/components/PremiumAnimatedRing.kt >> app/src/main/java/com/example/ui/components/PremiumAnimatedRing.tmp
+mv app/src/main/java/com/example/ui/components/PremiumAnimatedRing.tmp app/src/main/java/com/example/ui/components/PremiumAnimatedRing.kt
 
-import com.example.data.UserPreferencesRepository
-import com.example.data.UserProfile
-import com.example.data.dataStore
+cat << 'INNER_EOF2' > app/src/main/java/com/example/ui/components/PremiumAnimatedWaveCard.kt
+package com.example.ui.components
 
-class MainViewModel(application: Application) : AndroidViewModel(application) {
-    private val app = application as com.example.VitalityApplication
-    private val userPrefsRepository = app.userPrefsRepository
-    private val database = app.database
-    private val repository = app.stepRepository
-    val stepTrackerManager = app.stepTrackerManager
-
-    val userProfile: StateFlow<UserProfile> = userPrefsRepository.userProfileFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserProfile())
-        
-    fun completeOnboarding(goal: Int, height: Float, weight: Float, age: Int, gender: String) {
-        viewModelScope.launch {
-            val current = userProfile.value
-            userPrefsRepository.updateProfile(
-                current.copy(
-                    hasCompletedOnboarding = true,
-                    dailyStepGoal = goal,
-                    heightCm = height,
-                    weightKg = weight,
-                    age = age,
-                    gender = gender
-                )
-            )
-        }
-    }
-    
-    fun updateProfile(profile: UserProfile) {
-        viewModelScope.launch {
-            userPrefsRepository.updateProfile(profile)
-        }
-    }
-
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    private val todayString = dateFormat.format(Date())
-
-    val todayRecord: StateFlow<DailyStepRecord?> = repository.getRecordForDate(todayString)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
-    val todaySessions: StateFlow<List<WalkingSession>> = repository.getSessionsForDate(todayString)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val allRecords: StateFlow<List<DailyStepRecord>> = repository.allRecords
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val totalSteps: StateFlow<Int?> = repository.totalSteps
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
-
-    val totalDistance: StateFlow<Float?> = repository.totalDistance
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0f)
-
-    val totalCalories: StateFlow<Float?> = repository.totalCalories
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0f)
-        
-    val isTracking: StateFlow<Boolean> = stepTrackerManager.isTracking
-
-    fun startPassiveTracking() {
-        val intent = android.content.Intent(app, com.example.service.StepTrackingService::class.java).apply {
-            action = com.example.service.StepTrackingService.ACTION_PASSIVE_START
-        }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            app.startForegroundService(intent)
-        } else {
-            app.startService(intent)
-        }
-    }
-
-    fun startTracking() {
-        val intent = android.content.Intent(app, com.example.service.StepTrackingService::class.java).apply {
-            action = com.example.service.StepTrackingService.ACTION_START
-        }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            app.startForegroundService(intent)
-        } else {
-            app.startService(intent)
-        }
-    }
-
-    fun stopTracking() {
-        val intent = android.content.Intent(app, com.example.service.StepTrackingService::class.java).apply {
-            action = com.example.service.StepTrackingService.ACTION_STOP
-        }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            app.startForegroundService(intent)
-        } else {
-            app.startService(intent)
-        }
-    }
-
-    fun addMockSteps() {
-        stepTrackerManager.addMockSteps(500)
-    }
-}
-INNEREOF
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.example.ui.noiseOverlay
+import kotlin.math.sin
+INNER_EOF2
+# The wave card imports ended at line 34 earlier, let's find the first @Composable
+tail -n +$(grep -n "@Composable" app/src/main/java/com/example/ui/components/PremiumAnimatedWaveCard.kt | head -1 | cut -d: -f1) app/src/main/java/com/example/ui/components/PremiumAnimatedWaveCard.kt >> app/src/main/java/com/example/ui/components/PremiumAnimatedWaveCard.tmp
+mv app/src/main/java/com/example/ui/components/PremiumAnimatedWaveCard.tmp app/src/main/java/com/example/ui/components/PremiumAnimatedWaveCard.kt

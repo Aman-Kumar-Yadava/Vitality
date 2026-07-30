@@ -111,4 +111,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun addMockSteps() {
         stepTrackerManager.addMockSteps(500)
     }
+
+    fun setCustomActivity(steps: Int, distance: Float, calories: Float) {
+        stepTrackerManager.setCustomActivity(steps, distance, calories)
+    }
 }

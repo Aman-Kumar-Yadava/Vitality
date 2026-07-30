@@ -1,7 +1,9 @@
 #!/bin/bash
-# Remove the first line of DashboardScreen.kt and MainScreen.kt if it is an import, and add it below the package statement.
-sed -i '/^import androidx.compose.material.icons.automirrored.rounded.ArrowForward/d' app/src/main/java/com/example/ui/DashboardScreen.kt
-sed -i '/^import androidx.compose.foundation.border/d' app/src/main/java/com/example/ui/MainScreen.kt
+# Remove all bad imports
+sed -i '/import Icons/d' app/src/main/java/com/example/ui/components/PremiumAnimatedRing.kt
+sed -i '/import Icons/d' app/src/main/java/com/example/ui/components/PremiumAnimatedWaveCard.kt
 
-sed -i 's/^package com.example.ui/package com.example.ui\n\nimport androidx.compose.material.icons.automirrored.rounded.ArrowForward/' app/src/main/java/com/example/ui/DashboardScreen.kt
-sed -i 's/^package com.example.ui/package com.example.ui\n\nimport androidx.compose.foundation.border/' app/src/main/java/com/example/ui/MainScreen.kt
+# Add the proper ones after package declaration
+sed -i '/package com.example.ui.components/a import androidx.compose.material.icons.Icons\nimport androidx.compose.material.icons.automirrored.rounded.DirectionsRun\nimport androidx.compose.material.icons.automirrored.rounded.ArrowForward' app/src/main/java/com/example/ui/components/PremiumAnimatedRing.kt
+
+sed -i '/package com.example.ui.components/a import androidx.compose.material.icons.Icons\nimport androidx.compose.material.icons.automirrored.rounded.DirectionsRun\nimport androidx.compose.material.icons.automirrored.rounded.ArrowForward' app/src/main/java/com/example/ui/components/PremiumAnimatedWaveCard.kt

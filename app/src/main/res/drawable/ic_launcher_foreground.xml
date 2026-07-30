@@ -5,7 +5,6 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-
     <!-- Glowing backdrop (Drop shadow simulation) -->
     <path
         android:pathData="M 54,88 C 30,70 26,55 26,45 C 26,34 35,28 43,28 C 48,28 52,31 54,35 C 56,31 60,28 65,28 C 73,28 82,34 82,45 C 82,55 78,70 54,88 Z">
@@ -20,7 +19,6 @@
             </gradient>
         </aapt:attr>
     </path>
-
     <!-- Main stylized heart/pulse shape -->
     <path
         android:pathData="M 54,84 C 30,66 26,51 26,41 C 26,30 35,24 43,24 C 48,24 52,27 54,31 C 56,27 60,24 65,24 C 73,24 82,30 82,41 C 82,51 78,66 54,84 Z">
@@ -37,17 +35,14 @@
             </gradient>
         </aapt:attr>
     </path>
-
     <!-- Top Left Glass highlight 1 -->
     <path
         android:pathData="M 43,26 C 35,26 29,31 28,39 C 32,31 38,28 43,28 C 46,28 49,30 51,33 C 49,29 46,26 43,26 Z"
         android:fillColor="#90FFFFFF" />
-
     <!-- Top Right Glass highlight 2 -->
     <path
         android:pathData="M 65,26 C 60,26 57,29 55,33 C 57,30 60,28 65,28 C 70,28 76,31 80,39 C 79,31 73,26 65,26 Z"
         android:fillColor="#90FFFFFF" />
-        
     <!-- Bottom Inner Shadow / Ambient occlusion -->
     <path
         android:pathData="M 54,80 C 70,66 76,54 78,45 C 78,53 72,64 54,84 C 36,64 30,53 30,45 C 32,54 38,66 54,80 Z">
@@ -63,5 +58,14 @@
             </gradient>
         </aapt:attr>
     </path>
-
+    <!-- Running Person Icon inside Heart -->
+    <group
+        android:translateX="34.8"
+        android:translateY="31.8"
+        android:scaleX="1.6"
+        android:scaleY="1.6">
+        <path
+            android:fillColor="#4A148C"
+            android:pathData="M13.49,5.48c1.1,0 2,-0.9 2,-2s-0.9,-2 -2,-2s-2,0.9 -2,2S12.39,5.48 13.49,5.48z M9.89,19.38l1,-4.4l2.1,2v6h2v-7.5l-2.1,-2l0.6,-3c1.3,1.5 3.3,2.5 5.5,2.5v-2c-1.9,0 -3.5,-1 -4.3,-2.4l-1,-1.6c-0.4,-0.6 -1,-1 -1.7,-1c-0.3,0 -0.5,0.1 -0.8,0.1L6.79,8.38C6.39,8.48 6.09,8.88 6.09,9.38v5h2v-3.3l1.8,-0.7l-1.6,8.1L4.09,17.38l-0.7,1.9L8.19,21L9.89,19.38z" />
+    </group>
 </vector>

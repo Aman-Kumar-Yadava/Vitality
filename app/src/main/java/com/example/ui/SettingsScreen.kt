@@ -207,6 +207,27 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             modifier = Modifier.align(Alignment.End),
                             color = Color.DarkGray
                         )
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Text("Pill Menu Noise Strength", fontWeight = FontWeight.SemiBold, color = Color(0xFF1E1E1E))
+                        Text("Adds a textured grain effect to the bottom menu", style = MaterialTheme.typography.bodySmall, color = Color.DarkGray)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Slider(
+                            value = userProfile.pillMenuNoiseLevel,
+                            onValueChange = { newValue ->
+                                coroutineScope.launch {
+                                    viewModel.updateProfile(userProfile.copy(pillMenuNoiseLevel = newValue))
+                                }
+                            },
+                            valueRange = 0f..0.2f,
+                            colors = SliderDefaults.colors(thumbColor = Color(0xFF7F00FF), activeTrackColor = Color(0xFF7F00FF))
+                        )
+                        Text(
+                            text = "${(userProfile.pillMenuNoiseLevel * 100).roundToInt()}%",
+                            modifier = Modifier.align(Alignment.End),
+                            color = Color.DarkGray
+                        )
                     }
                 }
                 

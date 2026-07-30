@@ -165,4 +165,15 @@ class StepTrackerManager(
     private fun getCurrentDateString(): String {
         return dateFormat.format(Date())
     }
+
+    fun setCustomActivity(steps: Int, distance: Float, calories: Float) {
+        coroutineScope.launch {
+            val today = getCurrentDateString()
+            repository.updateCustomDataForDate(today, steps, distance, calories)
+            _currentSteps.value = steps
+            lastSavedSteps = steps
+            initialStepCount = -1f
+            updateWidget()
+        }
+    }
 }

@@ -57,4 +57,14 @@ class StepRepository(
         val factor = if (profile.gender == "Male") 1.03f else 0.98f
         return distanceKm * profile.weightKg * factor
     }
+
+    suspend fun updateCustomDataForDate(date: String, newSteps: Int, newDistance: Float, newCalories: Float) {
+        val record = DailyStepRecord(
+            dateString = date,
+            steps = newSteps,
+            distanceKm = newDistance,
+            caloriesBurned = newCalories
+        )
+        stepDao.insertOrUpdate(record)
+    }
 }
