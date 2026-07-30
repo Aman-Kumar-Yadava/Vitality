@@ -751,7 +751,7 @@ private fun AppPreferencesSection(
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 headlineContent = { Text("Enable Voice Announcements", fontWeight = FontWeight.SemiBold, color = Color(0xFF1E1E1E)) },
-                supportingContent = { Text("Voice updates during active workouts", color = Color.DarkGray) },
+                supportingContent = { Text("Voice updates during active walking sessions", color = Color.DarkGray) },
                 trailingContent = {
                     Switch(
                         checked = userProfile.announcementsEnabled,

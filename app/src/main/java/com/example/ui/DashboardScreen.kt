@@ -847,7 +847,7 @@ fun SessionSummaryModal(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = "WORKOUT SESSION",
+                                        text = "WALKING SESSION",
                                         style = MaterialTheme.typography.labelMedium.copy(
                                             fontWeight = FontWeight.Bold,
                                             letterSpacing = 1.sp

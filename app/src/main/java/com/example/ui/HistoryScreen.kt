@@ -38,6 +38,8 @@ import java.util.Locale
 fun HistoryScreen(viewModel: MainViewModel) {
     val history by viewModel.allRecords.collectAsStateWithLifecycle()
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+    val todaySessions by viewModel.todaySessions.collectAsStateWithLifecycle()
+    val currentSteps by viewModel.stepTrackerManager.currentSteps.collectAsStateWithLifecycle()
     
     val totalSteps = history.sumOf { it.steps }
     val totalDistance = history.map { it.distanceKm }.sum()
@@ -85,6 +87,9 @@ fun HistoryScreen(viewModel: MainViewModel) {
             item {
                 MetricGraphCard(
                     history = history,
+                    todaySessions = todaySessions,
+                    currentSteps = currentSteps,
+                    userProfile = userProfile,
                     selectedMetric = selectedMetric,
                     onMetricSelected = { selectedMetric = it }
                 )
@@ -262,10 +267,13 @@ data class GraphBarItem(
 @Composable
 fun MetricGraphCard(
     history: List<DailyStepRecord>,
+    todaySessions: List<com.example.data.WalkingSession>,
+    currentSteps: Int,
+    userProfile: com.example.data.UserProfile,
     selectedMetric: String,
     onMetricSelected: (String) -> Unit
 ) {
-    var selectedTimeframe by remember { mutableStateOf("Weekly") } // "Weekly", "Monthly", "Yearly"
+    var selectedTimeframe by remember { mutableStateOf("Daily") } // "Daily", "Weekly", "Monthly", "Yearly"
 
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
@@ -277,12 +285,12 @@ fun MetricGraphCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Timeframe Selector Row (Weekly, Monthly, Yearly) - Horizontal
+            // Timeframe Selector Row (Daily, Weekly, Monthly, Yearly) - Horizontal
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                listOf("Weekly", "Monthly", "Yearly").forEach { tf ->
+                listOf("Daily", "Weekly", "Monthly", "Yearly").forEach { tf ->
                     val isSel = selectedTimeframe.equals(tf, ignoreCase = true)
                     Surface(
                         onClick = { selectedTimeframe = tf },
@@ -343,15 +351,15 @@ fun MetricGraphCard(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Compute bars data based on history and selectedTimeframe
-            val barItems = remember(history, selectedTimeframe) {
-                buildGraphData(history, selectedTimeframe)
+            // Compute bars data based on history, todaySessions, currentSteps, userProfile and selectedTimeframe
+            val barItems = remember(history, todaySessions, currentSteps, userProfile, selectedTimeframe) {
+                buildGraphData(history, todaySessions, currentSteps, userProfile, selectedTimeframe)
             }
 
             val maxVal = when (selectedMetric) {
-                "Distance" -> (barItems.maxOfOrNull { it.distanceKm } ?: 5f).coerceAtLeast(1f)
-                "Calories" -> (barItems.maxOfOrNull { it.caloriesBurned } ?: 500f).coerceAtLeast(100f)
-                else -> (barItems.maxOfOrNull { it.steps } ?: 10000f).coerceAtLeast(100f)
+                "Distance" -> (barItems.maxOfOrNull { it.distanceKm } ?: 5f).coerceAtLeast(0.5f)
+                "Calories" -> (barItems.maxOfOrNull { it.caloriesBurned } ?: 500f).coerceAtLeast(10f)
+                else -> (barItems.maxOfOrNull { it.steps } ?: 10000f).coerceAtLeast(10f)
             }
 
             val barGradients = when (selectedMetric) {
@@ -360,10 +368,16 @@ fun MetricGraphCard(
                 else -> listOf(Color(0xFF7F00FF), Color(0xFFE100FF))
             }
 
+            val unitDisplay = when (selectedMetric) {
+                "Distance" -> "km"
+                "Calories" -> "cal"
+                else -> "steps"
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp),
+                    .height(245.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Bottom
             ) {
@@ -374,7 +388,7 @@ fun MetricGraphCard(
                         else -> item.steps
                     }
 
-                    val ratio = (rawVal / maxVal).coerceIn(0.08f, 1f)
+                    val ratio = (rawVal / maxVal).coerceIn(if (rawVal > 0f) 0.08f else 0.02f, 1f)
                     val animRatio by animateFloatAsState(
                         targetValue = ratio,
                         animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
@@ -382,8 +396,8 @@ fun MetricGraphCard(
                     )
 
                     val valDisplay = when (selectedMetric) {
-                        "Distance" -> String.format("%.1f", item.distanceKm)
-                        "Calories" -> String.format("%.0f", item.caloriesBurned)
+                        "Distance" -> if (item.distanceKm > 0) String.format("%.1f", item.distanceKm) else "0"
+                        "Calories" -> if (item.caloriesBurned > 0) String.format("%.0f", item.caloriesBurned) else "0"
                         else -> if (item.steps >= 1000) String.format("%.1fk", item.steps / 1000f) else "${item.steps.toInt()}"
                     }
 
@@ -394,14 +408,23 @@ fun MetricGraphCard(
                             .fillMaxHeight(),
                         verticalArrangement = Arrangement.Bottom
                     ) {
-                        // Value label on top of bar
-                        Text(
-                            text = valDisplay,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = Color(0xFF1E1E1E),
-                            fontSize = if (barItems.size > 8) 8.sp else 10.sp,
-                            maxLines = 1
-                        )
+                        // Value label and unit on top of bar
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = valDisplay,
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = Color(0xFF1E1E1E),
+                                fontSize = if (barItems.size > 8) 7.5.sp else 10.sp,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = unitDisplay,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.Gray,
+                                fontSize = if (barItems.size > 8) 6.5.sp else 8.5.sp,
+                                maxLines = 1
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(4.dp))
 
@@ -410,9 +433,12 @@ fun MetricGraphCard(
                             modifier = Modifier
                                 .weight(1f, fill = false)
                                 .fillMaxHeight(animRatio)
-                                .width(if (barItems.size > 8) 14.dp else 22.dp)
+                                .width(if (barItems.size > 8) 12.dp else 22.dp)
                                 .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
-                                .background(Brush.verticalGradient(barGradients))
+                                .background(
+                                    if (rawVal > 0f) Brush.verticalGradient(barGradients)
+                                    else Brush.verticalGradient(listOf(Color.LightGray.copy(alpha = 0.3f), Color.LightGray.copy(alpha = 0.2f)))
+                                )
                         )
 
                         Spacer(modifier = Modifier.height(6.dp))
@@ -423,15 +449,15 @@ fun MetricGraphCard(
                                 text = item.mainLabel,
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                 color = Color(0xFF1E1E1E),
-                                fontSize = if (barItems.size > 8) 9.sp else 11.sp,
+                                fontSize = if (barItems.size > 8) 8.sp else 11.sp,
                                 maxLines = 1
                             )
-                            if (item.subLabel.isNotBlank() && barItems.size <= 8) {
+                            if (item.subLabel.isNotBlank()) {
                                 Text(
                                     text = item.subLabel,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = Color.Gray,
-                                    fontSize = 8.sp,
+                                    fontSize = if (barItems.size > 8) 7.sp else 8.5.sp,
                                     maxLines = 1
                                 )
                             }
@@ -443,9 +469,73 @@ fun MetricGraphCard(
     }
 }
 
-private fun buildGraphData(history: List<DailyStepRecord>, timeframe: String): List<GraphBarItem> {
+private fun buildGraphData(
+    history: List<DailyStepRecord>,
+    todaySessions: List<com.example.data.WalkingSession>,
+    currentSteps: Int,
+    userProfile: com.example.data.UserProfile,
+    timeframe: String
+): List<GraphBarItem> {
     val today = LocalDate.now()
     return when (timeframe) {
+        "Daily" -> {
+            // 12 2-hour buckets across today (00:00 - 23:59)
+            val bucketSteps = FloatArray(12) { 0f }
+            val bucketDistance = FloatArray(12) { 0f }
+            val bucketCalories = FloatArray(12) { 0f }
+
+            val cal = java.util.Calendar.getInstance()
+
+            todaySessions.forEach { session ->
+                cal.timeInMillis = session.startTimeMs
+                val hr = cal.get(java.util.Calendar.HOUR_OF_DAY)
+                val bucketIdx = (hr / 2).coerceIn(0, 11)
+                bucketSteps[bucketIdx] += session.steps.toFloat()
+                bucketDistance[bucketIdx] += session.distanceKm
+
+                val calVal = if (session.distanceKm > 0f) {
+                    val factor = if (userProfile.gender == "Male") 1.03f else 0.98f
+                    session.distanceKm * userProfile.weightKg * factor
+                } else 0f
+                bucketCalories[bucketIdx] += calVal
+            }
+
+            // Distribute passive steps to current hour
+            val totalSessionSteps = todaySessions.sumOf { it.steps }
+            val passiveSteps = (currentSteps - totalSessionSteps).coerceAtLeast(0)
+            if (passiveSteps > 0) {
+                cal.timeInMillis = System.currentTimeMillis()
+                val curHr = cal.get(java.util.Calendar.HOUR_OF_DAY)
+                val curBucket = (curHr / 2).coerceIn(0, 11)
+                bucketSteps[curBucket] += passiveSteps.toFloat()
+
+                val passDist = if (userProfile.heightCm > 0f) {
+                    val strideMeters = (userProfile.heightCm * 0.414f) / 100f
+                    (passiveSteps * strideMeters) / 1000f
+                } else {
+                    (passiveSteps * 0.7f) / 1000f
+                }
+                val factor = if (userProfile.gender == "Male") 1.03f else 0.98f
+                val passCal = passDist * userProfile.weightKg * factor
+
+                bucketDistance[curBucket] += passDist
+                bucketCalories[curBucket] += passCal
+            }
+
+            val hourPairs = listOf(
+                "12" to "am", "2" to "am", "4" to "am", "6" to "am", "8" to "am", "10" to "am",
+                "12" to "pm", "2" to "pm", "4" to "pm", "6" to "pm", "8" to "pm", "10" to "pm"
+            )
+            hourPairs.mapIndexed { i, (hour, period) ->
+                GraphBarItem(
+                    mainLabel = hour,
+                    subLabel = period,
+                    steps = bucketSteps[i],
+                    distanceKm = bucketDistance[i],
+                    caloriesBurned = bucketCalories[i]
+                )
+            }
+        }
         "Monthly" -> {
             // Past 4 weeks
             (3 downTo 0).map { weekOffset ->

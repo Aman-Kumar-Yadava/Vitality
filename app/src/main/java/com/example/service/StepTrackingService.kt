@@ -170,7 +170,7 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
             builder.setProgress(goal, steps, false)
         }
         
-        builder.setContentTitle(if (app.stepTrackerManager.isTracking.value) "Active Workout ($timeStr)" else "Step Tracker")
+        builder.setContentTitle(if (app.stepTrackerManager.isTracking.value) "Active Walking ($timeStr)" else "Step Tracker")
         builder.setContentText(content)
         builder.setStyle(NotificationCompat.BigTextStyle().bigText(content))
         
@@ -228,7 +228,7 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
                 val goalDist = currentUserProfile.dailyDistanceGoalKm
                 val goalCal = currentUserProfile.dailyCaloriesGoal
                 
-                val startMsg = "Workout started. Your daily goals are $goalSteps steps, ${String.format("%.1f", goalDist)} kilometers, and $goalCal calories. Before starting this session, you have completed $startSteps steps, ${String.format("%.2f", startDist)} kilometers, and burned ${startCal.toInt()} calories today."
+                val startMsg = "Walking session started. Your daily goals are $goalSteps steps, ${String.format("%.1f", goalDist)} kilometers, and $goalCal calories. Before starting this session, you have completed $startSteps steps, ${String.format("%.2f", startDist)} kilometers, and burned ${startCal.toInt()} calories today."
                 
                 if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
                     announce(startMsg)
@@ -239,13 +239,13 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
             ACTION_PAUSE -> {
                 app.stepTrackerManager.stopTracking()
                 if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
-                    announce("Workout paused")
+                    announce("Walking paused")
                 }
             }
             ACTION_RESUME -> {
                 app.stepTrackerManager.startTracking()
                 if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
-                    announce("Workout resumed")
+                    announce("Walking resumed")
                 }
             }
             ACTION_STOP -> {
@@ -263,7 +263,7 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
                 val goalDist = currentUserProfile.dailyDistanceGoalKm
                 val goalCal = currentUserProfile.dailyCaloriesGoal
                 
-                val stopMsg = "Workout stopped. In this session, you walked $sessionSteps steps, ${String.format("%.2f", sessionDist)} kilometers, and burned ${sessionCal.toInt()} calories. Today overall, you have reached $currentSteps of $goalSteps steps, ${String.format("%.2f", currentDist)} of ${String.format("%.1f", goalDist)} kilometers, and ${currentCal.toInt()} of $goalCal calories."
+                val stopMsg = "Walking session stopped. In this session, you walked $sessionSteps steps, ${String.format("%.2f", sessionDist)} kilometers, and burned ${sessionCal.toInt()} calories. Today overall, you have reached $currentSteps of $goalSteps steps, ${String.format("%.2f", currentDist)} of ${String.format("%.1f", goalDist)} kilometers, and ${currentCal.toInt()} of $goalCal calories."
                 
                 if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
                     announce(stopMsg)
@@ -272,7 +272,7 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
                 stopSelf()
             }
             ACTION_PASSIVE_START -> {
-                // Passive tracking: keep service registered without starting active workout session
+                // Passive tracking: keep service registered without starting active walking session
             }
         }
         return START_NOT_STICKY
@@ -283,6 +283,13 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
             val result = tts.setLanguage(Locale.US)
             if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) {
                 isTtsInitialized = true
+                
+                val audioAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+                tts.setAudioAttributes(audioAttributes)
+                
                 updateTtsSettings()
                 pendingStartAnnouncement?.let { msg ->
                     if (currentUserProfile.announcementsEnabled) {
@@ -296,31 +303,46 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
                 override fun onStart(utteranceId: String?) {}
                     
                 override fun onDone(utteranceId: String?) {
-                    abandonAudioFocus()
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        if (!tts.isSpeaking) {
+                            abandonAudioFocus()
+                        }
+                    }
                 }
                     
                 override fun onError(utteranceId: String?) {
-                    abandonAudioFocus()
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        abandonAudioFocus()
+                    }
                 }
             })
         }
     }
         
+    private var hasFocus = false
+
     private fun requestAudioFocus(): Boolean {
+        if (hasFocus) return true
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val audioAttributes = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                 .build()
                     
             audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
                 .setAudioAttributes(audioAttributes)
-                .setAcceptsDelayedFocusGain(true)
-                .setOnAudioFocusChangeListener { }
+                .setAcceptsDelayedFocusGain(false)
+                .setOnAudioFocusChangeListener { focusChange ->
+                    if (focusChange == AudioManager.AUDIOFOCUS_LOSS ||
+                        focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+                        hasFocus = false
+                    }
+                }
                 .build()
                     
             val result = audioManager.requestAudioFocus(audioFocusRequest!!)
-            return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            hasFocus = (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+            return hasFocus
         } else {
             @Suppress("DEPRECATION")
             val result = audioManager.requestAudioFocus(
@@ -328,18 +350,25 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
                 AudioManager.STREAM_MUSIC,
                 AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
             )
-            return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            hasFocus = (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+            return hasFocus
         }
     }
         
     private fun abandonAudioFocus() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            audioFocusRequest?.let {
-                audioManager.abandonAudioFocusRequest(it)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                audioFocusRequest?.let {
+                    audioManager.abandonAudioFocusRequest(it)
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.abandonAudioFocus(null)
             }
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.abandonAudioFocus(null)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            hasFocus = false
         }
     }
 
@@ -370,6 +399,7 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
             tts.stop()
             tts.shutdown()
         }
+        abandonAudioFocus()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
