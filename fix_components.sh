@@ -1,7 +1,0 @@
-#!/bin/bash
-sed -i 's/SineEasing/FastOutSlowInEasing/g' app/src/main/java/com/example/ui/components/PremiumAnimatedRing.kt
-sed -i 's/import androidx.compose.ui.graphics.vector.ImageVector/import androidx.compose.ui.graphics.vector.ImageVector\nimport androidx.compose.foundation.shape.CircleShape\nimport androidx.compose.material.icons.Icons\nimport androidx.compose.material.icons.automirrored.rounded.ArrowForward/g' app/src/main/java/com/example/ui/components/PremiumAnimatedWaveCard.kt
-sed -i 's/androidx.compose.material.icons.Icons.AutoMirrored.Rounded.DirectionsRun/androidx.compose.material.icons.Icons.AutoMirrored.Rounded.DirectionsRun/g' app/src/main/java/com/example/ui/components/PremiumAnimatedRing.kt
-sed -i 's/import androidx.compose.ui.graphics.drawscope.withTransform/import androidx.compose.ui.graphics.drawscope.withTransform\nimport androidx.compose.ui.draw.scale\nimport androidx.compose.material.icons.automirrored.rounded.DirectionsRun/g' app/src/main/java/com/example/ui/components/PremiumAnimatedRing.kt
-sed -i 's/modifier = Modifier.fillMaxSize().androidx.compose.ui.draw.scale(scale)/modifier = Modifier.fillMaxSize().scale(scale)/g' app/src/main/java/com/example/ui/components/PremiumAnimatedRing.kt
-sed -i 's/imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Rounded.DirectionsRun/imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Rounded.DirectionsRun/g' app/src/main/java/com/example/ui/components/PremiumAnimatedRing.kt
