@@ -24,7 +24,15 @@ class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        // Handle permission result if needed
+        val activityGranted = permissions[Manifest.permission.ACTIVITY_RECOGNITION] ?: (
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACTIVITY_RECOGNITION
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+        if (activityGranted) {
+            (application as? VitalityApplication)?.stepTrackerManager?.reRegisterSensor()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,14 +45,6 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme {
                 val viewModel: MainViewModel = viewModel()
                 
-                DisposableEffect(Unit) {
-                    viewModel.startPassiveTracking()
-                    onDispose {
-                        // Let the service continue in the background
-                        // viewModel.stopTracking()
-                    }
-                }
-
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -65,20 +65,6 @@ class MainActivity : ComponentActivity() {
             ) {
                 permissionsToRequest.add(Manifest.permission.ACTIVITY_RECOGNITION)
             }
-        }
-        
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-        } else if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            permissionsToRequest.add(Manifest.permission.ACCESS_COARSE_LOCATION)
         }
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

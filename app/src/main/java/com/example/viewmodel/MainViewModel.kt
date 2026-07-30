@@ -30,13 +30,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val userProfile: StateFlow<UserProfile> = userPrefsRepository.userProfileFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserProfile())
         
-    fun completeOnboarding(goal: Int, height: Float, weight: Float, age: Int, gender: String) {
+    fun completeOnboarding(
+        userName: String,
+        stepGoal: Int,
+        distGoalKm: Float,
+        calGoal: Int,
+        height: Float,
+        weight: Float,
+        age: Int,
+        gender: String
+    ) {
         viewModelScope.launch {
             val current = userProfile.value
             userPrefsRepository.updateProfile(
                 current.copy(
                     hasCompletedOnboarding = true,
-                    dailyStepGoal = goal,
+                    userName = userName,
+                    dailyStepGoal = stepGoal,
+                    dailyDistanceGoalKm = distGoalKm,
+                    dailyCaloriesGoal = calGoal,
                     heightCm = height,
                     weightKg = weight,
                     age = age,
@@ -76,35 +88,47 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val isTracking: StateFlow<Boolean> = stepTrackerManager.isTracking
 
     fun startPassiveTracking() {
-        val intent = android.content.Intent(app, com.example.service.StepTrackingService::class.java).apply {
-            action = com.example.service.StepTrackingService.ACTION_PASSIVE_START
-        }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            app.startForegroundService(intent)
-        } else {
-            app.startService(intent)
+        try {
+            val intent = android.content.Intent(app, com.example.service.StepTrackingService::class.java).apply {
+                action = com.example.service.StepTrackingService.ACTION_PASSIVE_START
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                app.startForegroundService(intent)
+            } else {
+                app.startService(intent)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     fun startTracking() {
-        val intent = android.content.Intent(app, com.example.service.StepTrackingService::class.java).apply {
-            action = com.example.service.StepTrackingService.ACTION_START
-        }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            app.startForegroundService(intent)
-        } else {
-            app.startService(intent)
+        try {
+            val intent = android.content.Intent(app, com.example.service.StepTrackingService::class.java).apply {
+                action = com.example.service.StepTrackingService.ACTION_START
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                app.startForegroundService(intent)
+            } else {
+                app.startService(intent)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     fun stopTracking() {
-        val intent = android.content.Intent(app, com.example.service.StepTrackingService::class.java).apply {
-            action = com.example.service.StepTrackingService.ACTION_STOP
-        }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            app.startForegroundService(intent)
-        } else {
-            app.startService(intent)
+        try {
+            val intent = android.content.Intent(app, com.example.service.StepTrackingService::class.java).apply {
+                action = com.example.service.StepTrackingService.ACTION_STOP
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                app.startForegroundService(intent)
+            } else {
+                app.startService(intent)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 

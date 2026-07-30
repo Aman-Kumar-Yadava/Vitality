@@ -20,8 +20,22 @@ import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OnboardingScreen(onComplete: (Int, Float, Float, Int, String) -> Unit) {
-    var goalStr by remember { mutableStateOf("10000") }
+fun OnboardingScreen(
+    onComplete: (
+        userName: String,
+        stepGoal: Int,
+        distGoalKm: Float,
+        calGoal: Int,
+        height: Float,
+        weight: Float,
+        age: Int,
+        gender: String
+    ) -> Unit
+) {
+    var nameStr by remember { mutableStateOf("Alex") }
+    var stepGoalStr by remember { mutableStateOf("10000") }
+    var distGoalStr by remember { mutableStateOf("8.0") }
+    var calGoalStr by remember { mutableStateOf("500") }
     var heightStr by remember { mutableStateOf("170") }
     var weightStr by remember { mutableStateOf("70") }
     var ageStr by remember { mutableStateOf("25") }
@@ -57,7 +71,7 @@ fun OnboardingScreen(onComplete: (Int, Float, Float, Int, String) -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .background(bgGradient)
-                .noiseOverlay(0.05f)
+                .noiseOverlay(0f)
         ) {
             Column(
                 modifier = Modifier
@@ -66,22 +80,30 @@ fun OnboardingScreen(onComplete: (Int, Float, Float, Int, String) -> Unit) {
                     .padding(24.dp)
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(24.dp)
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 Text(
-                    text = "Let's personalize your experience to track calories and distance accurately.",
+                    text = "Let's set up your profile and daily goals to personalize your tracking.",
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
                     color = Color.DarkGray
                 )
                 
                 GlassCard {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text(
+                            text = "Profile Details",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFF1E1E1E)
+                        )
+
                         OutlinedTextField(
-                            value = goalStr,
-                            onValueChange = { goalStr = it },
-                            label = { Text("Daily Step Goal") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            value = nameStr,
+                            onValueChange = { nameStr = it },
+                            label = { Text("Your Name") },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -91,8 +113,8 @@ fun OnboardingScreen(onComplete: (Int, Float, Float, Int, String) -> Unit) {
                                 unfocusedBorderColor = Color.Transparent
                             )
                         )
-                        
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             OutlinedTextField(
                                 value = heightStr,
                                 onValueChange = { heightStr = it },
@@ -124,7 +146,7 @@ fun OnboardingScreen(onComplete: (Int, Float, Float, Int, String) -> Unit) {
                             )
                         }
                         
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             OutlinedTextField(
                                 value = ageStr,
                                 onValueChange = { ageStr = it },
@@ -177,10 +199,64 @@ fun OnboardingScreen(onComplete: (Int, Float, Float, Int, String) -> Unit) {
                                 }
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Daily Goals",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFF1E1E1E)
+                        )
+
+                        OutlinedTextField(
+                            value = stepGoalStr,
+                            onValueChange = { stepGoalStr = it },
+                            label = { Text("Daily Steps Goal") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.White.copy(alpha = 0.5f),
+                                unfocusedContainerColor = Color.White.copy(alpha = 0.5f),
+                                focusedBorderColor = Color(0xFF7F00FF),
+                                unfocusedBorderColor = Color.Transparent
+                            )
+                        )
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedTextField(
+                                value = distGoalStr,
+                                onValueChange = { distGoalStr = it },
+                                label = { Text("Distance Goal (km)") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.White.copy(alpha = 0.5f),
+                                    unfocusedContainerColor = Color.White.copy(alpha = 0.5f),
+                                    focusedBorderColor = Color(0xFF7F00FF),
+                                    unfocusedBorderColor = Color.Transparent
+                                )
+                            )
+
+                            OutlinedTextField(
+                                value = calGoalStr,
+                                onValueChange = { calGoalStr = it },
+                                label = { Text("Calories Goal (kcal)") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.White.copy(alpha = 0.5f),
+                                    unfocusedContainerColor = Color.White.copy(alpha = 0.5f),
+                                    focusedBorderColor = Color(0xFF7F00FF),
+                                    unfocusedBorderColor = Color.Transparent
+                                )
+                            )
+                        }
                     }
                 }
                 
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.height(8.dp))
                 
                 val btnGradient = Brush.horizontalGradient(
                     colors = listOf(Color(0xFF7F00FF), Color(0xFFFF007F), Color(0xFFFF8C00))
@@ -188,11 +264,14 @@ fun OnboardingScreen(onComplete: (Int, Float, Float, Int, String) -> Unit) {
                 
                 Button(
                     onClick = {
-                        val goal = goalStr.toIntOrNull() ?: 10000
+                        val name = nameStr.ifBlank { "User" }
+                        val stepGoal = stepGoalStr.toIntOrNull() ?: 10000
+                        val distGoal = distGoalStr.toFloatOrNull() ?: 8.0f
+                        val calGoal = calGoalStr.toIntOrNull() ?: 500
                         val height = heightStr.toFloatOrNull() ?: 170f
                         val weight = weightStr.toFloatOrNull() ?: 70f
                         val age = ageStr.toIntOrNull() ?: 25
-                        onComplete(goal, height, weight, age, selectedGender)
+                        onComplete(name, stepGoal, distGoal, calGoal, height, weight, age, selectedGender)
                     },
                     modifier = Modifier
                         .fillMaxWidth()

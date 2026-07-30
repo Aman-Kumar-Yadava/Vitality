@@ -43,6 +43,11 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
     
+    private var sessionStartSteps = 0
+    private var sessionStartDistanceKm = 0f
+    private var sessionStartCalories = 0f
+    private var pendingStartAnnouncement: String? = null
+
     private var lastAnnouncedSteps = 0
     private var lastAnnouncedDistanceKm = 0f
     private var lastAnnouncedCalories = 0f
@@ -103,15 +108,19 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
             
         val notification = notificationBuilder!!.build()
         
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            ServiceCompat.startForeground(
-                this, 
-                NOTIFICATION_ID, 
-                notification, 
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                ServiceCompat.startForeground(
+                    this, 
+                    NOTIFICATION_ID, 
+                    notification, 
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
         
         // Update notification UI regularly (for time display)
@@ -203,32 +212,70 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_PASSIVE_START) {
-            // Just keep the service alive for passive tracking
-        } else if (intent == null || intent.action == ACTION_START) {
-            app.stepTrackerManager.startTracking()
-            if (isTtsInitialized && currentUserProfile.announcementsEnabled && intent?.action == ACTION_START) {
-                announce("Workout started")
+        when (intent?.action) {
+            ACTION_START -> {
+                val startSteps = app.stepTrackerManager.currentSteps.value
+                val startDist = app.stepRepository.calculateDistance(startSteps, currentUserProfile)
+                val startCal = app.stepRepository.calculateCalories(startDist, currentUserProfile)
+                
+                sessionStartSteps = startSteps
+                sessionStartDistanceKm = startDist
+                sessionStartCalories = startCal
+                
+                app.stepTrackerManager.startTracking()
+                
+                val goalSteps = currentUserProfile.dailyStepGoal
+                val goalDist = currentUserProfile.dailyDistanceGoalKm
+                val goalCal = currentUserProfile.dailyCaloriesGoal
+                
+                val startMsg = "Workout started. Your daily goals are $goalSteps steps, ${String.format("%.1f", goalDist)} kilometers, and $goalCal calories. Before starting this session, you have completed $startSteps steps, ${String.format("%.2f", startDist)} kilometers, and burned ${startCal.toInt()} calories today."
+                
+                if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
+                    announce(startMsg)
+                } else {
+                    pendingStartAnnouncement = startMsg
+                }
             }
-        } else if (intent.action == ACTION_PAUSE) {
-            app.stepTrackerManager.stopTracking()
-            if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
-                announce("Workout paused")
+            ACTION_PAUSE -> {
+                app.stepTrackerManager.stopTracking()
+                if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
+                    announce("Workout paused")
+                }
             }
-        } else if (intent.action == ACTION_RESUME) {
-            app.stepTrackerManager.startTracking()
-            if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
-                announce("Workout resumed")
+            ACTION_RESUME -> {
+                app.stepTrackerManager.startTracking()
+                if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
+                    announce("Workout resumed")
+                }
             }
-        } else if (intent.action == ACTION_STOP) {
-            app.stepTrackerManager.stopTracking()
-            if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
-                announce("Workout stopped")
+            ACTION_STOP -> {
+                val currentSteps = app.stepTrackerManager.currentSteps.value
+                val currentDist = app.stepRepository.calculateDistance(currentSteps, currentUserProfile)
+                val currentCal = app.stepRepository.calculateCalories(currentDist, currentUserProfile)
+                
+                val sessionSteps = (currentSteps - sessionStartSteps).coerceAtLeast(0)
+                val sessionDist = app.stepRepository.calculateDistance(sessionSteps, currentUserProfile)
+                val sessionCal = app.stepRepository.calculateCalories(sessionDist, currentUserProfile)
+                
+                app.stepTrackerManager.stopTracking()
+                
+                val goalSteps = currentUserProfile.dailyStepGoal
+                val goalDist = currentUserProfile.dailyDistanceGoalKm
+                val goalCal = currentUserProfile.dailyCaloriesGoal
+                
+                val stopMsg = "Workout stopped. In this session, you walked $sessionSteps steps, ${String.format("%.2f", sessionDist)} kilometers, and burned ${sessionCal.toInt()} calories. Today overall, you have reached $currentSteps of $goalSteps steps, ${String.format("%.2f", currentDist)} of ${String.format("%.1f", goalDist)} kilometers, and ${currentCal.toInt()} of $goalCal calories."
+                
+                if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
+                    announce(stopMsg)
+                }
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
             }
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
+            ACTION_PASSIVE_START -> {
+                // Passive tracking: keep service registered without starting active workout session
+            }
         }
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onInit(status: Int) {
@@ -237,6 +284,12 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
             if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) {
                 isTtsInitialized = true
                 updateTtsSettings()
+                pendingStartAnnouncement?.let { msg ->
+                    if (currentUserProfile.announcementsEnabled) {
+                        announce(msg)
+                    }
+                    pendingStartAnnouncement = null
+                }
             }
                 
             tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {

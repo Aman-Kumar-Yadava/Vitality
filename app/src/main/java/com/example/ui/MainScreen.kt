@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,6 +43,8 @@ sealed class Screen(
     object Dashboard : Screen("dashboard", "Today", Icons.Rounded.Home)
     object History : Screen("history", "Trends", Icons.Rounded.ShowChart)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
+    object DistanceDetails : Screen("distance_details", "Distance", Icons.AutoMirrored.Filled.DirectionsWalk)
+    object CaloriesDetails : Screen("calories_details", "Calories", Icons.Rounded.LocalFireDepartment)
 }
 
 @Composable
@@ -51,6 +54,9 @@ fun MainScreen(viewModel: MainViewModel) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val isSettingsOpen = currentDestination?.route == Screen.Settings.route
+    val isDistanceDetailsOpen = currentDestination?.route == Screen.DistanceDetails.route
+    val isCaloriesDetailsOpen = currentDestination?.route == Screen.CaloriesDetails.route
+    val hideNavAndSettings = isSettingsOpen || isDistanceDetailsOpen || isCaloriesDetailsOpen
     val items = listOf(Screen.Dashboard, Screen.History)
     
     Box(modifier = Modifier.fillMaxSize()) {
@@ -59,13 +65,31 @@ fun MainScreen(viewModel: MainViewModel) {
             startDestination = Screen.Dashboard.route,
             modifier = Modifier.fillMaxSize()
         ) {
-            composable(Screen.Dashboard.route) { DashboardScreen(viewModel) }
+            composable(Screen.Dashboard.route) { 
+                DashboardScreen(
+                    viewModel = viewModel,
+                    onDistanceClick = { navController.navigate(Screen.DistanceDetails.route) },
+                    onCaloriesClick = { navController.navigate(Screen.CaloriesDetails.route) }
+                ) 
+            }
             composable(Screen.History.route) { HistoryScreen(viewModel) }
             composable(Screen.Settings.route) { SettingsScreen(viewModel) }
+            composable(Screen.DistanceDetails.route) { 
+                DistanceDetailsScreen(
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() }
+                ) 
+            }
+            composable(Screen.CaloriesDetails.route) { 
+                CaloriesDetailsScreen(
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() }
+                ) 
+            }
         }
         
         // Floating Bottom Navigation Bar
-        if (!isSettingsOpen) {
+        if (!hideNavAndSettings) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -123,33 +147,34 @@ fun MainScreen(viewModel: MainViewModel) {
             }
         }
         
-        // Settings Icon in Top Right
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 48.dp, end = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Settings Icon
-            Box(
+        // Settings Icon in Top Right (hidden on Distance & Calories Details screens)
+        if (!isDistanceDetailsOpen && !isCaloriesDetailsOpen) {
+            Row(
                 modifier = Modifier
-                    .size(40.dp)
-                    .background(Color.White.copy(alpha = 0.5f), CircleShape)
-                    .clickable {
-                        if (isSettingsOpen) {
-                            navController.popBackStack()
-                        } else {
-                            navController.navigate(Screen.Settings.route)
-                        }
-                    },
-                contentAlignment = Alignment.Center
+                    .align(Alignment.TopEnd)
+                    .padding(top = 48.dp, end = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(
-                    imageVector = if (isSettingsOpen) Icons.Rounded.Close else Icons.Filled.Settings,
-                    contentDescription = if (isSettingsOpen) "Close Settings" else "Settings",
-                    tint = Color.DarkGray,
-                    modifier = Modifier.size(20.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(Color.White.copy(alpha = 0.5f), CircleShape)
+                        .clickable {
+                            if (isSettingsOpen) {
+                                navController.popBackStack()
+                            } else {
+                                navController.navigate(Screen.Settings.route)
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isSettingsOpen) Icons.Rounded.Close else Icons.Filled.Settings,
+                        contentDescription = if (isSettingsOpen) "Close Settings" else "Settings",
+                        tint = Color.DarkGray,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }

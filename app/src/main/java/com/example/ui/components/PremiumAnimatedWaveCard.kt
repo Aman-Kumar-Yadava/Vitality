@@ -3,6 +3,7 @@ package com.example.ui.components
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.ui.noiseOverlay
 import kotlin.math.sin
 
@@ -34,7 +36,9 @@ fun PremiumAnimatedWaveCard(
     unit: String,
     icon: ImageVector,
     colors: List<Color>,
-    noiseLevel: Float
+    noiseLevel: Float,
+    badgeText: String? = null,
+    onClick: (() -> Unit)? = null
 ) {
     // Wave animation states
     val infiniteTransition = rememberInfiniteTransition(label = "wave_transition")
@@ -81,6 +85,7 @@ fun PremiumAnimatedWaveCard(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(24.dp))
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .background(Brush.linearGradient(colors))
             .noiseOverlay(noiseLevel)
     ) {
@@ -147,7 +152,7 @@ fun PremiumAnimatedWaveCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
@@ -158,24 +163,37 @@ fun PremiumAnimatedWaveCard(
                     Icon(imageVector = icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                 }
                 
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.size(18.dp)
-                )
+                if (badgeText == null) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                } else {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White.copy(alpha = 0.9f)
+                    )
+                }
             }
             
             Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.White.copy(alpha = 0.9f)
-                )
+                if (badgeText == null) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.9f)
+                    )
+                }
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         text = value,
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = if (badgeText != null) 24.sp else 22.sp
+                        ),
                         color = Color.White
                     )
                     Spacer(modifier = Modifier.width(4.dp))
@@ -185,6 +203,21 @@ fun PremiumAnimatedWaveCard(
                         color = Color.White.copy(alpha = 0.8f),
                         modifier = Modifier.padding(bottom = 2.dp)
                     )
+                }
+
+                if (badgeText != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .background(Color.White.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = badgeText,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 9.sp),
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }

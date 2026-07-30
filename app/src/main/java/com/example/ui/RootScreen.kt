@@ -54,8 +54,8 @@ fun RootScreen(viewModel: MainViewModel) {
     ) {
         if (!userProfile.hasCompletedOnboarding) {
             OnboardingScreen(
-                onComplete = { goal, height, weight, age, gender ->
-                    viewModel.completeOnboarding(goal, height, weight, age, gender)
+                onComplete = { userName, stepGoal, distGoalKm, calGoal, height, weight, age, gender ->
+                    viewModel.completeOnboarding(userName, stepGoal, distGoalKm, calGoal, height, weight, age, gender)
                 }
             )
         } else {

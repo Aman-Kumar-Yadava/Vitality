@@ -49,7 +49,22 @@ class StepTrackerManager(
 
     private fun initializePassiveTracking() {
         stepSensor?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+            try {
+                sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun reRegisterSensor() {
+        stepSensor?.let {
+            try {
+                sensorManager.unregisterListener(this)
+                sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -102,16 +117,22 @@ class StepTrackerManager(
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
     private fun saveCurrentSession() {
-        if (currentSessionStartTime != 0L && lastStepTime > currentSessionStartTime) {
-            val steps = _currentSteps.value - sessionStartTotalSteps
-            if (steps > 0) {
+        val now = System.currentTimeMillis()
+        val startTime = currentSessionStartTime
+        if (startTime != 0L) {
+            val endTime = if (lastStepTime > startTime) lastStepTime else now
+            val steps = (_currentSteps.value - sessionStartTotalSteps).coerceAtLeast(0)
+            val durationMs = (endTime - startTime).coerceAtLeast(0)
+            
+            // Save session if duration is at least 1 second or steps > 0
+            if (durationMs >= 1000L || steps > 0) {
                 coroutineScope.launch {
                     val profile = repository.userPreferencesRepository.userProfileFlow.first()
                     val distance = repository.calculateDistance(steps, profile)
                     repository.addSession(WalkingSession(
                         dateString = getCurrentDateString(),
-                        startTimeMs = currentSessionStartTime,
-                        endTimeMs = lastStepTime,
+                        startTimeMs = startTime,
+                        endTimeMs = endTime,
                         steps = steps,
                         distanceKm = distance
                     ))
