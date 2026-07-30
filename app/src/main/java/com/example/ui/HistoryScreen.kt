@@ -4,6 +4,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -25,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -177,25 +179,33 @@ fun BuffedLifetimeStatsCard(totalSteps: Int, totalDistance: Float, totalCalories
                 
                 // 3 Stat Grid Cards
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Max),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     LifetimeStatTile(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         icon = Icons.Rounded.DirectionsWalk,
                         value = String.format("%,d", totalSteps),
                         label = "Total Steps",
                         accentColor = Color(0xFF00E676)
                     )
                     LifetimeStatTile(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         icon = Icons.AutoMirrored.Rounded.DirectionsRun,
                         value = String.format("%.1f km", totalDistance),
                         label = "Distance",
                         accentColor = Color(0xFF00B0FF)
                     )
                     LifetimeStatTile(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         icon = Icons.Rounded.LocalFireDepartment,
                         value = String.format("%.0f kcal", totalCalories),
                         label = "Calories",
@@ -219,10 +229,14 @@ private fun LifetimeStatTile(
         modifier = modifier
             .clip(RoundedCornerShape(20.dp))
             .background(Color.White.copy(alpha = 0.12f))
-            .padding(12.dp),
+            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
+            .padding(vertical = 12.dp, horizontal = 4.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
             Box(
                 modifier = Modifier
                     .size(34.dp)
@@ -241,8 +255,10 @@ private fun LifetimeStatTile(
                 text = value,
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
                 color = Color.White,
-                fontSize = 15.sp,
+                fontSize = if (value.length > 8) 12.sp else 14.sp,
                 maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(2.dp))
@@ -250,7 +266,11 @@ private fun LifetimeStatTile(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.White.copy(alpha = 0.8f),
-                fontSize = 11.sp
+                fontSize = 11.sp,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -273,7 +293,7 @@ fun MetricGraphCard(
     selectedMetric: String,
     onMetricSelected: (String) -> Unit
 ) {
-    var selectedTimeframe by remember { mutableStateOf("Daily") } // "Daily", "Weekly", "Monthly", "Yearly"
+    var selectedTimeframe by remember { mutableStateOf("Weekly") } // "Daily", "Weekly", "Monthly", "Yearly"
 
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {

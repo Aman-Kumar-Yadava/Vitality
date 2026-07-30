@@ -489,7 +489,7 @@ fun CaloriesHistoryCard(
             .shadow(8.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
             .border(1.5.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(24.dp)),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.85f))
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.5f))
     ) {
         Column(
             modifier = Modifier
@@ -510,7 +510,8 @@ fun CaloriesHistoryCard(
                 Box {
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFF3F0F9), RoundedCornerShape(16.dp))
+                            .background(Color.White.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                            .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
                             .clickable { dropdownExpanded = true }
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
@@ -717,7 +718,7 @@ fun HowCaloriesCalculatedCard(
             .shadow(8.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
             .border(1.5.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(24.dp)),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.85f))
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.5f))
     ) {
         Column(
             modifier = Modifier
@@ -731,7 +732,7 @@ fun HowCaloriesCalculatedCard(
                 Box(
                     modifier = Modifier
                         .size(40.dp)
-                        .background(Color(0xFFFFEBEE), CircleShape),
+                        .background(Color(0xFFE53935).copy(alpha = 0.12f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -769,7 +770,7 @@ fun HowCaloriesCalculatedCard(
                 // Weight
                 CalculationFactorItem(
                     icon = Icons.Rounded.Person,
-                    bgColor = Color(0xFFEDE7F6),
+                    bgColor = Color(0xFF7E57C2).copy(alpha = 0.12f),
                     iconColor = Color(0xFF7E57C2),
                     label = "Weight",
                     value = "${weightKg.toInt()} kg"
@@ -780,7 +781,7 @@ fun HowCaloriesCalculatedCard(
                 // Distance
                 CalculationFactorItem(
                     icon = Icons.AutoMirrored.Rounded.DirectionsRun,
-                    bgColor = Color(0xFFF3E5F5),
+                    bgColor = Color(0xFFAB47BC).copy(alpha = 0.12f),
                     iconColor = Color(0xFFAB47BC),
                     label = "Distance",
                     value = String.format("%.2f km", distanceKm)
@@ -791,7 +792,7 @@ fun HowCaloriesCalculatedCard(
                 // Gender
                 CalculationFactorItem(
                     icon = Icons.Rounded.LocalFireDepartment,
-                    bgColor = Color(0xFFFFEBEE),
+                    bgColor = Color(0xFFEF5350).copy(alpha = 0.12f),
                     iconColor = Color(0xFFEF5350),
                     label = "Gender",
                     value = gender
@@ -802,7 +803,7 @@ fun HowCaloriesCalculatedCard(
                 // Metabolic Factor
                 CalculationFactorItem(
                     icon = Icons.Rounded.Favorite,
-                    bgColor = Color(0xFFFCE4EC),
+                    bgColor = Color(0xFFEC407A).copy(alpha = 0.12f),
                     iconColor = Color(0xFFEC407A),
                     label = "Factor",
                     value = String.format("%.2f", metabolicFactor)
@@ -815,7 +816,7 @@ fun HowCaloriesCalculatedCard(
                     modifier = Modifier
                         .size(54.dp)
                         .border(2.dp, Color(0xFFFF5252), CircleShape)
-                        .background(Color(0xFFFFF0F2), CircleShape),
+                        .background(Color(0xFFFF5252).copy(alpha = 0.12f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -842,7 +843,8 @@ fun HowCaloriesCalculatedCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFF3F0F9), RoundedCornerShape(12.dp))
+                    .background(Color(0xFF4A148C).copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                    .border(1.dp, Color(0xFF4A148C).copy(alpha = 0.15f), RoundedCornerShape(12.dp))
                     .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
                 Text(
@@ -861,8 +863,8 @@ fun HowCaloriesCalculatedCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFAFAFA), RoundedCornerShape(12.dp))
-                    .border(1.dp, Color(0xFFEEEEEE), RoundedCornerShape(12.dp))
+                    .background(Color.White.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                    .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
                     .padding(12.dp)
             ) {
                 Row(
@@ -932,7 +934,7 @@ fun AboutCaloriesCard() {
             .shadow(6.dp, RoundedCornerShape(20.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
             .border(1.5.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(20.dp)),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.85f))
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.5f))
     ) {
         Row(
             modifier = Modifier
@@ -943,7 +945,7 @@ fun AboutCaloriesCard() {
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .background(Color(0xFFEDE7F6), CircleShape),
+                    .background(Color(0xFF673AB7).copy(alpha = 0.12f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -974,7 +976,7 @@ fun AboutCaloriesCard() {
             Box(
                 modifier = Modifier
                     .size(44.dp)
-                    .background(Color(0xFFFFF3E0), CircleShape),
+                    .background(Color(0xFFFF9800).copy(alpha = 0.12f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

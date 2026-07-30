@@ -494,7 +494,7 @@ fun DistanceHistoryCard(
             .shadow(8.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
             .border(1.5.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(24.dp)),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.85f))
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.5f))
     ) {
         Column(
             modifier = Modifier
@@ -516,7 +516,8 @@ fun DistanceHistoryCard(
                 Box {
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFF3F0F9), RoundedCornerShape(16.dp))
+                            .background(Color.White.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                            .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
                             .clickable { dropdownExpanded = true }
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
@@ -717,7 +718,7 @@ fun StrideLengthCard(
             .shadow(8.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
             .border(1.5.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(24.dp)),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.85f))
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.5f))
     ) {
         Column(
             modifier = Modifier
@@ -779,7 +780,7 @@ fun StrideLengthCard(
                 Box(
                     modifier = Modifier
                         .size(46.dp)
-                        .background(Color(0xFFF3E5F5), CircleShape),
+                        .background(Color(0xFF8E24AA).copy(alpha = 0.12f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -810,7 +811,8 @@ fun StrideLengthCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFF3F0F9), RoundedCornerShape(12.dp))
+                    .background(Color(0xFF6A1B9A).copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                    .border(1.dp, Color(0xFF6A1B9A).copy(alpha = 0.15f), RoundedCornerShape(12.dp))
                     .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
                 Text(
@@ -831,8 +833,8 @@ fun StrideLengthCard(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .background(Color(0xFFFAFAFA), RoundedCornerShape(12.dp))
-                        .border(1.dp, Color(0xFFEEEEEE), RoundedCornerShape(12.dp))
+                        .background(Color.White.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Column {
@@ -844,8 +846,8 @@ fun StrideLengthCard(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .background(Color(0xFFFAFAFA), RoundedCornerShape(12.dp))
-                        .border(1.dp, Color(0xFFEEEEEE), RoundedCornerShape(12.dp))
+                        .background(Color.White.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Column {
@@ -942,7 +944,7 @@ fun AboutDistanceCard() {
             .shadow(6.dp, RoundedCornerShape(20.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
             .border(1.5.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(20.dp)),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.85f))
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.5f))
     ) {
         Row(
             modifier = Modifier
@@ -953,7 +955,7 @@ fun AboutDistanceCard() {
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .background(Color(0xFFEDE7F6), CircleShape),
+                    .background(Color(0xFF673AB7).copy(alpha = 0.12f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

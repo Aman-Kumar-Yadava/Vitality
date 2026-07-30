@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -27,6 +28,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.appwidget.updateAll
@@ -125,9 +127,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
                                 .background(
                                     Brush.linearGradient(
                                         colors = listOf(
-                                            Color(0xFF7F00FF),
-                                            Color(0xFFE100FF),
-                                            Color(0xFFFF007F)
+                                            Color(0xFFFF85A1), // Light Pink
+                                            Color(0xFFC38FFF)  // Light Purple
                                         )
                                     )
                                 )
@@ -189,7 +190,12 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         },
                         onWidgetOpacityFinished = {
                             coroutineScope.launch {
-                                com.example.widget.HealthWidget().updateAll(context)
+                                try {
+                                    com.example.widget.HealthWidget().updateAll(context)
+                                    com.example.widget.TransparentHealthWidget().updateAll(context)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
                             }
                         }
                     )
@@ -235,7 +241,7 @@ private fun ProfileAndGoalsDetailScreen(
                         modifier = Modifier
                             .size(64.dp)
                             .background(
-                                Brush.linearGradient(listOf(Color(0xFF7F00FF), Color(0xFFE100FF))),
+                                Brush.linearGradient(listOf(Color(0xFFFF85A1), Color(0xFFC38FFF))),
                                 CircleShape
                             ),
                         contentAlignment = Alignment.Center
@@ -367,7 +373,7 @@ private fun ProfileAndGoalsDetailScreen(
         Button(
             onClick = { isEditing = true },
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7F00FF)),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF85A1)),
             shape = RoundedCornerShape(16.dp),
             contentPadding = PaddingValues(vertical = 14.dp)
         ) {
@@ -714,24 +720,34 @@ private fun AppPreferencesSection(
             ) {
                 listOf("Steps", "Distance", "Calories").forEach { metric ->
                     val isSelected = userProfile.primaryProgressMetric.equals(metric, ignoreCase = true)
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = {
-                            onUpdateProfile(userProfile.copy(primaryProgressMetric = metric))
-                        },
-                        label = {
-                            Text(
-                                text = metric,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                if (isSelected) Color(0xFF7F00FF) else Color.White.copy(alpha = 0.5f)
                             )
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFF7F00FF),
-                            selectedLabelColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                            .border(
+                                width = 1.dp,
+                                color = if (isSelected) Color(0xFF7F00FF) else Color.White.copy(alpha = 0.7f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .clickable {
+                                onUpdateProfile(userProfile.copy(primaryProgressMetric = metric))
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = metric,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) Color.White else Color(0xFF1E1E1E),
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            softWrap = false,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }
@@ -857,31 +873,6 @@ private fun AppPreferencesSection(
 
     Spacer(modifier = Modifier.height(32.dp))
 
-    Text("Widget Settings", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), modifier = Modifier.padding(bottom = 16.dp), color = Color(0xFF1E1E1E))
-
-    GlassCard {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Widget Background Opacity", fontWeight = FontWeight.SemiBold, color = Color(0xFF1E1E1E))
-            Spacer(modifier = Modifier.height(8.dp))
-            Slider(
-                value = userProfile.widgetOpacity,
-                onValueChange = { newValue ->
-                    onUpdateProfile(userProfile.copy(widgetOpacity = newValue))
-                },
-                onValueChangeFinished = onWidgetOpacityFinished,
-                valueRange = 0f..1f,
-                colors = SliderDefaults.colors(thumbColor = Color(0xFF7F00FF), activeTrackColor = Color(0xFF7F00FF))
-            )
-            Text(
-                text = "${(userProfile.widgetOpacity * 100).roundToInt()}%",
-                modifier = Modifier.align(Alignment.End),
-                color = Color.DarkGray
-            )
-        }
-    }
-
-    Spacer(modifier = Modifier.height(32.dp))
-
     Text("UI Settings", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), modifier = Modifier.padding(bottom = 16.dp), color = Color(0xFF1E1E1E))
 
     GlassCard {
@@ -920,6 +911,117 @@ private fun AppPreferencesSection(
                 text = "${(userProfile.pillMenuNoiseLevel * 100).roundToInt()}%",
                 modifier = Modifier.align(Alignment.End),
                 color = Color.DarkGray
+            )
+        }
+    }
+
+    Spacer(modifier = Modifier.height(32.dp))
+
+    Text("Widget Settings & Options", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), modifier = Modifier.padding(bottom = 16.dp), color = Color(0xFF1E1E1E))
+
+    GlassCard {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Available Home Screen Widgets",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = Color(0xFF1E1E1E)
+            )
+            Text(
+                text = "Long-press your home screen to add either widget style",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.DarkGray
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Widget Previews Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Style 1: Gradient Theme Widget
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFF7000FF), Color(0xFFFF007F), Color(0xFFFF8947))
+                            )
+                        )
+                        .padding(12.dp)
+                ) {
+                    Column {
+                        Text("Gradient Widget", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.AutoMirrored.Rounded.DirectionsWalk, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("8,450", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold), color = Color.White)
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("5.8 km  •  320 kcal", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.9f))
+                    }
+                }
+
+                // Style 2: Transparent Glowing White Widget
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            // Simulated dark wallpaper background to show off transparent glowing white blending
+                            Brush.verticalGradient(
+                                listOf(Color(0xFF111827), Color(0xFF1F2937))
+                            )
+                        )
+                        .padding(12.dp)
+                ) {
+                    // Transparent PNG layer overlay
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = userProfile.widgetOpacity * 0.2f))
+                    ) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Transparent PNG", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(Icons.Rounded.Star, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.AutoMirrored.Rounded.DirectionsWalk, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("8,450", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold), color = Color.White)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("5.8 km  •  320 kcal", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold), color = Color.White)
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text("Widget Background Glass Opacity", fontWeight = FontWeight.SemiBold, color = Color(0xFF1E1E1E))
+            Text("Adjust background translucency (0% = completely clear PNG transparent)", style = MaterialTheme.typography.bodySmall, color = Color.DarkGray)
+            Spacer(modifier = Modifier.height(8.dp))
+            Slider(
+                value = userProfile.widgetOpacity,
+                onValueChange = { newValue ->
+                    onUpdateProfile(userProfile.copy(widgetOpacity = newValue))
+                },
+                onValueChangeFinished = onWidgetOpacityFinished,
+                valueRange = 0f..1f,
+                colors = SliderDefaults.colors(thumbColor = Color(0xFFFF3D00), activeTrackColor = Color(0xFFFF3D00))
+            )
+            Text(
+                text = if (userProfile.widgetOpacity == 0f) "0% (Fully Transparent PNG)" else "${(userProfile.widgetOpacity * 100).roundToInt()}%",
+                modifier = Modifier.align(Alignment.End),
+                color = Color.DarkGray,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
             )
         }
     }

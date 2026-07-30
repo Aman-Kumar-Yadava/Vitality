@@ -15,7 +15,12 @@ class WidgetUpdateWorker(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        HealthWidget().updateAll(context)
+        try {
+            HealthWidget().updateAll(context)
+            TransparentHealthWidget().updateAll(context)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         return Result.success()
     }
 
