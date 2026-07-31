@@ -71,11 +71,24 @@ fun CaloriesDetailsScreen(
     val todayRecord by viewModel.todayRecord.collectAsStateWithLifecycle()
     val currentSteps by viewModel.stepTrackerManager.currentSteps.collectAsStateWithLifecycle()
 
-    // Calculate today's distance & calories
+    // Calculate MET-based calories, speed, pace, duration
+    val activeMinutes = if ((todayRecord?.activeTimeMinutes ?: 0) > 0) {
+        todayRecord!!.activeTimeMinutes.toFloat()
+    } else {
+        com.example.data.FitnessCalculations.calculateActiveDurationMinutes(currentSteps, viewModel.stepTrackerManager.currentCadence)
+    }
+    val durationHours = activeMinutes / 60f
     val strideFactor = if (userProfile.gender == "Male") 0.00415f else 0.00413f
     val todayDistance = todayRecord?.distanceKm ?: (currentSteps * userProfile.heightCm * strideFactor / 1000f)
-    val metabolicFactor = if (userProfile.gender == "Male") 1.03f else 0.98f
-    val todayCalories = todayRecord?.caloriesBurned ?: (todayDistance * userProfile.weightKg * metabolicFactor)
+    val walkingSpeed = com.example.data.FitnessCalculations.calculateSpeedKmh(todayDistance, durationHours)
+    val paceSec = com.example.data.FitnessCalculations.calculatePaceSecondsPerKm(todayDistance, activeMinutes)
+    val metValue = com.example.data.FitnessCalculations.determineMetFromPaceSeconds(paceSec, walkingSpeed)
+    
+    val activeCalories = com.example.data.FitnessCalculations.calculateActiveCalories(metValue, userProfile.weightKg, durationHours).let {
+        if (it > 0f) it else todayRecord?.caloriesBurned ?: (todayDistance * userProfile.weightKg * 1.0f)
+    }
+    val estimatedTotalCalories = com.example.data.FitnessCalculations.calculateTotalCalories(activeCalories, userProfile.weightKg, durationHours)
+    val todayCalories = activeCalories
 
     // Yesterday comparison
     val calendar = Calendar.getInstance()
@@ -267,6 +280,82 @@ fun CaloriesDetailsScreen(
                 }
             }
 
+            // Total Estimated Calories & MET Value Row
+            item {
+                AnimatedVisibility(
+                    visible = isVisible,
+                    enter = fadeIn(animationSpec = tween(650)) + slideInVertically(initialOffsetY = { 110 }, animationSpec = tween(650))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        PremiumAnimatedWaveCard(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(140.dp),
+                            title = "Est. Total Burn",
+                            value = String.format("%.0f", estimatedTotalCalories),
+                            unit = "kcal",
+                            badgeText = "Active + BMR",
+                            colors = listOf(Color(0xFFFF5252), Color(0xFFFF1744)),
+                            icon = Icons.Rounded.LocalFireDepartment,
+                            noiseLevel = userProfile.uiNoiseLevel
+                        )
+                        PremiumAnimatedWaveCard(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(140.dp),
+                            title = "MET Value",
+                            value = String.format("%.1f", metValue),
+                            unit = "METs",
+                            badgeText = "Intensity multiplier",
+                            colors = listOf(Color(0xFF8A2387), Color(0xFFE94057)),
+                            icon = Icons.Rounded.Favorite,
+                            noiseLevel = userProfile.uiNoiseLevel
+                        )
+                    }
+                }
+            }
+
+            // Speed & Pace Row
+            item {
+                AnimatedVisibility(
+                    visible = isVisible,
+                    enter = fadeIn(animationSpec = tween(680)) + slideInVertically(initialOffsetY = { 115 }, animationSpec = tween(680))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        PremiumAnimatedWaveCard(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(140.dp),
+                            title = "Walking Speed",
+                            value = String.format("%.1f", walkingSpeed),
+                            unit = "km/h",
+                            badgeText = "Speed = Distance / Time",
+                            colors = listOf(Color(0xFF00B4DB), Color(0xFF0083B0)),
+                            icon = Icons.AutoMirrored.Rounded.DirectionsRun,
+                            noiseLevel = userProfile.uiNoiseLevel
+                        )
+                        PremiumAnimatedWaveCard(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(140.dp),
+                            title = "Average Pace",
+                            value = com.example.data.FitnessCalculations.formatPace(paceSec),
+                            unit = "min/km",
+                            badgeText = "Pace = Time / Distance",
+                            colors = listOf(Color(0xFF7F00FF), Color(0xFFE100FF)),
+                            icon = Icons.Rounded.DateRange,
+                            noiseLevel = userProfile.uiNoiseLevel
+                        )
+                    }
+                }
+            }
+
             // How Calories Are Calculated Card
             item {
                 AnimatedVisibility(
@@ -277,9 +366,10 @@ fun CaloriesDetailsScreen(
                         weightKg = userProfile.weightKg,
                         distanceKm = todayDistance,
                         gender = userProfile.gender,
-                        metabolicFactor = metabolicFactor,
                         caloriesBurned = todayCalories,
-                        noiseLevel = userProfile.uiNoiseLevel
+                        noiseLevel = userProfile.uiNoiseLevel,
+                        metValue = metValue,
+                        durationHours = durationHours
                     )
                 }
             }
@@ -708,9 +798,11 @@ fun HowCaloriesCalculatedCard(
     weightKg: Float,
     distanceKm: Float,
     gender: String,
-    metabolicFactor: Float,
+    metabolicFactor: Float = 3.5f,
     caloriesBurned: Float,
-    noiseLevel: Float = 0f
+    noiseLevel: Float = 0f,
+    metValue: Float = 3.5f,
+    durationHours: Float = 0.5f
 ) {
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
@@ -748,21 +840,32 @@ fun HowCaloriesCalculatedCard(
                         color = Color(0xFF1E1E1E)
                     )
                     Text(
-                        text = "We estimate calories using your weight, distance, and standard metabolic factor.",
+                        text = "Calculated using Metabolic Equivalent of Task (MET) formula.",
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                         color = Color.Gray
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // Step items flow row (Weight x Distance x Gender x Metabolic Factor = Calories)
+            // Step items flow row (MET x Weight x Duration = Calories)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // MET
+                CalculationFactorItem(
+                    icon = Icons.Rounded.Favorite,
+                    bgColor = Color(0xFFEC407A).copy(alpha = 0.12f),
+                    iconColor = Color(0xFFEC407A),
+                    label = "MET",
+                    value = String.format("%.1f", metValue)
+                )
+
+                Text("×", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 16.sp)
+
                 // Weight
                 CalculationFactorItem(
                     icon = Icons.Rounded.Person,
@@ -774,35 +877,13 @@ fun HowCaloriesCalculatedCard(
 
                 Text("×", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 16.sp)
 
-                // Distance
+                // Duration
                 CalculationFactorItem(
                     icon = Icons.AutoMirrored.Rounded.DirectionsRun,
                     bgColor = Color(0xFFAB47BC).copy(alpha = 0.12f),
                     iconColor = Color(0xFFAB47BC),
-                    label = "Distance",
-                    value = String.format("%.2f km", distanceKm)
-                )
-
-                Text("×", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 16.sp)
-
-                // Gender
-                CalculationFactorItem(
-                    icon = Icons.Rounded.LocalFireDepartment,
-                    bgColor = Color(0xFFEF5350).copy(alpha = 0.12f),
-                    iconColor = Color(0xFFEF5350),
-                    label = "Gender",
-                    value = gender
-                )
-
-                Text("×", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 16.sp)
-
-                // Metabolic Factor
-                CalculationFactorItem(
-                    icon = Icons.Rounded.Favorite,
-                    bgColor = Color(0xFFEC407A).copy(alpha = 0.12f),
-                    iconColor = Color(0xFFEC407A),
-                    label = "Factor",
-                    value = String.format("%.2f", metabolicFactor)
+                    label = "Duration",
+                    value = String.format("%.1f h", durationHours)
                 )
 
                 Text("=", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 16.sp)
@@ -843,14 +924,30 @@ fun HowCaloriesCalculatedCard(
                     .border(1.dp, Color(0xFF4A148C).copy(alpha = 0.15f), RoundedCornerShape(12.dp))
                     .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
-                Text(
-                    text = "Formula: Calories = Distance (km) × Weight (kg) × Metabolic Factor",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF4A148C),
-                        fontSize = 11.sp
+                Column {
+                    Text(
+                        text = "Formula: Active Calories = MET × Weight (kg) × Duration (hrs)",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4A148C),
+                            fontSize = 11.5.sp
+                        )
                     )
-                )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "MET Intensity Reference Table:\n" +
+                                "• Very slow (<3.2 km/h): 2.0 MET\n" +
+                                "• Slow (3.2–4.0 km/h): 2.8 MET\n" +
+                                "• Normal (4.0–5.2 km/h): 3.5 MET\n" +
+                                "• Brisk (5.2–6.0 km/h): 4.3 MET\n" +
+                                "• Fast (6.0–7.2 km/h): 5.0 MET\n" +
+                                "• Very fast (>7.2 km/h): 6.3 MET",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 11.sp,
+                            color = Color(0xFF4A148C).copy(alpha = 0.85f)
+                        )
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))

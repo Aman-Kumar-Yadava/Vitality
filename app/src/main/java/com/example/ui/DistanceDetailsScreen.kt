@@ -88,10 +88,19 @@ fun DistanceDetailsScreen(
         0
     }
 
-    // Stride calculation
-    val strideFactor = if (userProfile.gender == "Male") 0.00415f else 0.00413f
-    val strideMeters = userProfile.heightCm * strideFactor
-    val formulaStr = "Stride Length = Height (cm) × ${if (userProfile.gender == "Male") "0.00415" else "0.00413"}"
+    val activeMinutes = if ((todayRecord?.activeTimeMinutes ?: 0) > 0) {
+        todayRecord!!.activeTimeMinutes.toFloat()
+    } else {
+        com.example.data.FitnessCalculations.calculateActiveDurationMinutes(currentSteps, viewModel.stepTrackerManager.currentCadence)
+    }
+    val durationHours = activeMinutes / 60f
+    val walkingSpeed = com.example.data.FitnessCalculations.calculateSpeedKmh(todayDistance, durationHours)
+    val avgPaceSec = com.example.data.FitnessCalculations.calculatePaceSecondsPerKm(todayDistance, activeMinutes)
+    val avgPaceFormatted = com.example.data.FitnessCalculations.formatPaceWithUnit(avgPaceSec)
+    val currentCadence = viewModel.stepTrackerManager.currentCadence
+    val adaptiveStrideMeters = com.example.data.FitnessCalculations.calculateAdaptiveStrideMeters(
+        userProfile.heightCm, userProfile.gender, currentCadence
+    )
 
     // Weekly & Monthly calculations
     val now = Calendar.getInstance()
@@ -268,6 +277,44 @@ fun DistanceDetailsScreen(
                 }
             }
 
+            // Speed & Average Pace Row
+            item {
+                AnimatedVisibility(
+                    visible = isVisible,
+                    enter = fadeIn(animationSpec = tween(650)) + slideInVertically(initialOffsetY = { 110 }, animationSpec = tween(650))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        PremiumAnimatedWaveCard(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(135.dp),
+                            title = "Walking Speed",
+                            value = String.format("%.1f", walkingSpeed),
+                            unit = "km/h",
+                            badgeText = "Speed = Distance / Time",
+                            colors = listOf(Color(0xFF00B4DB), Color(0xFF0083B0)),
+                            icon = Icons.AutoMirrored.Rounded.DirectionsRun,
+                            noiseLevel = userProfile.uiNoiseLevel
+                        )
+                        PremiumAnimatedWaveCard(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(135.dp),
+                            title = "Average Pace",
+                            value = com.example.data.FitnessCalculations.formatPace(avgPaceSec),
+                            unit = "min/km",
+                            badgeText = "Pace = Time / Distance",
+                            colors = listOf(Color(0xFF7F00FF), Color(0xFFE100FF)),
+                            icon = Icons.Rounded.DateRange,
+                            noiseLevel = userProfile.uiNoiseLevel
+                        )
+                    }
+                }
+            }
+
             // Estimated Stride Length Card
             item {
                 AnimatedVisibility(
@@ -275,11 +322,12 @@ fun DistanceDetailsScreen(
                     enter = fadeIn(animationSpec = tween(700)) + slideInVertically(initialOffsetY = { 120 }, animationSpec = tween(700))
                 ) {
                     StrideLengthCard(
-                        strideMeters = strideMeters,
+                        strideMeters = adaptiveStrideMeters,
                         heightCm = userProfile.heightCm,
                         gender = userProfile.gender,
-                        formulaStr = formulaStr,
-                        noiseLevel = userProfile.uiNoiseLevel
+                        formulaStr = "Base Stride = Height × ${if (userProfile.gender == "Female") "0.413" else "0.415"}",
+                        noiseLevel = userProfile.uiNoiseLevel,
+                        userProfile = userProfile
                     )
                 }
             }
@@ -710,7 +758,8 @@ fun StrideLengthCard(
     heightCm: Float,
     gender: String,
     formulaStr: String,
-    noiseLevel: Float = 0f
+    noiseLevel: Float = 0f,
+    userProfile: com.example.data.UserProfile? = null
 ) {
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
@@ -811,13 +860,27 @@ fun StrideLengthCard(
                     .border(1.dp, Color(0xFF6A1B9A).copy(alpha = 0.15f), RoundedCornerShape(12.dp))
                     .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
-                Text(
-                    text = formulaStr,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF4A148C)
+                Column {
+                    Text(
+                        text = "Base Stride = Height × ${if (gender == "Female") "0.413" else "0.415"}",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4A148C)
+                        )
                     )
-                )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Dynamic Cadence Adjustments:\n" +
+                                "• <80 spm: Stride × 0.95 (Slow)\n" +
+                                "• 80–110 spm: Stride × 1.00 (Normal)\n" +
+                                "• 110–130 spm: Stride × 1.05 (Fast)\n" +
+                                "• >130 spm: Stride × 1.10 (Very Fast)",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 11.5.sp,
+                            color = Color(0xFF4A148C).copy(alpha = 0.85f)
+                        )
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))

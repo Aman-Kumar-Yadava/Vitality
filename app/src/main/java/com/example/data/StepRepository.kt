@@ -21,16 +21,25 @@ class StepRepository(
         return stepDao.getRecordForDateSync(date)
     }
 
-    suspend fun updateStepsForDate(date: String, newSteps: Int) {
-        val existing = stepDao.getRecordForDateSync(date)
+    suspend fun updateStepsForDate(date: String, newSteps: Int, cadenceStepsPerMin: Float = 100f) {
         val profile = userPreferencesRepository.userProfileFlow.first()
-        val distance = calculateDistance(newSteps, profile)
-        val calories = calculateCalories(distance, profile)
+        val distance = calculateDistance(newSteps, profile, cadenceStepsPerMin)
+        val activeMinutes = FitnessCalculations.calculateActiveDurationMinutes(newSteps, cadenceStepsPerMin)
+        val durationHours = activeMinutes / 60f
+        val paceSeconds = FitnessCalculations.calculatePaceSecondsPerKm(distance, activeMinutes)
+        val speedKmh = FitnessCalculations.calculateSpeedKmh(distance, durationHours)
+        val met = FitnessCalculations.determineMetFromPaceSeconds(paceSeconds, speedKmh)
+        val calories = FitnessCalculations.calculateActiveCalories(met, profile.weightKg, durationHours)
+
         val record = DailyStepRecord(
             dateString = date,
             steps = newSteps,
             distanceKm = distance,
-            caloriesBurned = calories
+            caloriesBurned = calories,
+            activeTimeMinutes = activeMinutes.toInt(),
+            paceSecondsPerKm = paceSeconds,
+            avgSpeedKmh = speedKmh,
+            avgCadence = cadenceStepsPerMin.toInt().coerceAtLeast(60)
         )
         stepDao.insertOrUpdate(record)
     }
@@ -43,27 +52,32 @@ class StepRepository(
         sessionDao.insertSession(session)
     }
     
-    fun calculateDistance(steps: Int, profile: UserProfile): Float {
-        val strideLengthMeters = if (profile.gender == "Male") {
-            profile.heightCm * 0.00415f
-        } else {
-            profile.heightCm * 0.00413f
-        }
-        return (steps * strideLengthMeters) / 1000f
+    fun calculateDistance(steps: Int, profile: UserProfile, cadenceStepsPerMin: Float = 100f): Float {
+        return FitnessCalculations.calculateDistanceKm(steps, profile.heightCm, profile.gender, cadenceStepsPerMin)
     }
     
-    fun calculateCalories(distanceKm: Float, profile: UserProfile): Float {
-        // Approximate: distance (km) * weight (kg) * factor
-        val factor = if (profile.gender == "Male") 1.03f else 0.98f
-        return distanceKm * profile.weightKg * factor
+    fun calculateCalories(distanceKm: Float, profile: UserProfile, durationMinutes: Float = 0f, cadenceStepsPerMin: Float = 100f): Float {
+        val minutes = if (durationMinutes > 0f) durationMinutes else (distanceKm * 12f).coerceAtLeast(1f) // default ~12 min/km
+        val durationHours = minutes / 60f
+        val paceSeconds = FitnessCalculations.calculatePaceSecondsPerKm(distanceKm, minutes)
+        val speed = FitnessCalculations.calculateSpeedKmh(distanceKm, durationHours)
+        val met = FitnessCalculations.determineMetFromPaceSeconds(paceSeconds, speed)
+        return FitnessCalculations.calculateActiveCalories(met, profile.weightKg, durationHours)
     }
 
     suspend fun updateCustomDataForDate(date: String, newSteps: Int, newDistance: Float, newCalories: Float) {
+        val durationMinutes = if (newDistance > 0f) (newDistance * 11.5f) else (newSteps / 100f)
+        val paceSeconds = FitnessCalculations.calculatePaceSecondsPerKm(newDistance, durationMinutes)
+        val speedKmh = FitnessCalculations.calculateSpeedKmh(newDistance, durationMinutes / 60f)
         val record = DailyStepRecord(
             dateString = date,
             steps = newSteps,
             distanceKm = newDistance,
-            caloriesBurned = newCalories
+            caloriesBurned = newCalories,
+            activeTimeMinutes = durationMinutes.toInt(),
+            paceSecondsPerKm = paceSeconds,
+            avgSpeedKmh = speedKmh,
+            avgCadence = 100
         )
         stepDao.insertOrUpdate(record)
     }

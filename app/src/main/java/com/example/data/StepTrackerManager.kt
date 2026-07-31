@@ -84,10 +84,29 @@ class StepTrackerManager(
         saveCurrentSession()
     }
 
+    private val recentStepTimes = ArrayDeque<Long>()
+    var currentCadence = 100f
+        private set
+
     override fun onSensorChanged(event: SensorEvent?) {
         if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
             val totalSteps = event.values[0]
             val now = System.currentTimeMillis()
+            
+            // Track timestamp for cadence calculation
+            recentStepTimes.addLast(now)
+            if (recentStepTimes.size > 20) {
+                recentStepTimes.removeFirst()
+            }
+            if (recentStepTimes.size >= 3) {
+                val oldest = recentStepTimes.first()
+                val diffMs = now - oldest
+                if (diffMs > 2000L && diffMs < 120000L) {
+                    val stepsInWindow = recentStepTimes.size - 1
+                    val calculatedCadence = (stepsInWindow * 60000f) / diffMs
+                    currentCadence = calculatedCadence.coerceIn(50f, 180f)
+                }
+            }
             
             if (initialStepCount == -1f) {
                 initialStepCount = totalSteps
@@ -128,7 +147,7 @@ class StepTrackerManager(
             if (durationMs >= 1000L || steps > 0) {
                 coroutineScope.launch {
                     val profile = repository.userPreferencesRepository.userProfileFlow.first()
-                    val distance = repository.calculateDistance(steps, profile)
+                    val distance = repository.calculateDistance(steps, profile, currentCadence)
                     repository.addSession(WalkingSession(
                         dateString = getCurrentDateString(),
                         startTimeMs = startTime,
@@ -145,7 +164,7 @@ class StepTrackerManager(
     private fun saveStepsToDb(steps: Int) {
         val today = getCurrentDateString()
         coroutineScope.launch {
-            repository.updateStepsForDate(today, steps)
+            repository.updateStepsForDate(today, steps, currentCadence)
         }
     }
     

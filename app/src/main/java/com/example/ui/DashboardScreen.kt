@@ -87,6 +87,14 @@ fun DashboardScreen(
 
     val primaryMetric = userProfile.primaryProgressMetric // "Steps", "Distance", "Calories"
 
+    val activeMinutes = if ((todayRecord?.activeTimeMinutes ?: 0) > 0) {
+        todayRecord!!.activeTimeMinutes.toFloat()
+    } else {
+        com.example.data.FitnessCalculations.calculateActiveDurationMinutes(steps, viewModel.stepTrackerManager.currentCadence)
+    }
+    val paceSeconds = com.example.data.FitnessCalculations.calculatePaceSecondsPerKm(distance, activeMinutes)
+    val paceStr = com.example.data.FitnessCalculations.formatPace(paceSeconds)
+
     val (ringValueText, ringTargetText, ringProgress) = when (primaryMetric) {
         "Distance" -> Triple(
             String.format("%.2f", distance),
@@ -310,76 +318,38 @@ fun DashboardScreen(
                     
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        when (primaryMetric) {
-                            "Distance" -> {
-                                PremiumAnimatedWaveCard(
-                                    modifier = Modifier.weight(1f).height(130.dp),
-                                    title = "Steps",
-                                    value = "%,d".format(steps),
-                                    unit = "steps",
-                                    icon = Icons.AutoMirrored.Rounded.DirectionsRun,
-                                    colors = listOf(Color(0xFF9D50BB), Color(0xFF6E48AA)),
-                                    noiseLevel = userProfile.uiNoiseLevel,
-                                    onClick = null
-                                )
-                                PremiumAnimatedWaveCard(
-                                    modifier = Modifier.weight(1f).height(130.dp),
-                                    title = "Calories",
-                                    value = String.format("%.0f", calories),
-                                    unit = "kcal",
-                                    icon = Icons.Rounded.LocalFireDepartment,
-                                    colors = listOf(Color(0xFFFF8008), Color(0xFFFFC837)),
-                                    noiseLevel = userProfile.uiNoiseLevel,
-                                    onClick = onCaloriesClick
-                                )
-                            }
-                            "Calories" -> {
-                                PremiumAnimatedWaveCard(
-                                    modifier = Modifier.weight(1f).height(130.dp),
-                                    title = "Distance",
-                                    value = String.format("%.2f", distance),
-                                    unit = "km",
-                                    icon = Icons.AutoMirrored.Rounded.DirectionsRun,
-                                    colors = listOf(Color(0xFF9D50BB), Color(0xFF6E48AA)),
-                                    noiseLevel = userProfile.uiNoiseLevel,
-                                    onClick = onDistanceClick
-                                )
-                                PremiumAnimatedWaveCard(
-                                    modifier = Modifier.weight(1f).height(130.dp),
-                                    title = "Steps",
-                                    value = "%,d".format(steps),
-                                    unit = "steps",
-                                    icon = Icons.Rounded.LocalFireDepartment,
-                                    colors = listOf(Color(0xFFFF8008), Color(0xFFFFC837)),
-                                    noiseLevel = userProfile.uiNoiseLevel,
-                                    onClick = null
-                                )
-                            }
-                            else -> {
-                                PremiumAnimatedWaveCard(
-                                    modifier = Modifier.weight(1f).height(130.dp),
-                                    title = "Distance",
-                                    value = String.format("%.2f", distance),
-                                    unit = "km",
-                                    icon = Icons.AutoMirrored.Rounded.DirectionsRun,
-                                    colors = listOf(Color(0xFF9D50BB), Color(0xFF6E48AA)),
-                                    noiseLevel = userProfile.uiNoiseLevel,
-                                    onClick = onDistanceClick
-                                )
-                                PremiumAnimatedWaveCard(
-                                    modifier = Modifier.weight(1f).height(130.dp),
-                                    title = "Calories",
-                                    value = String.format("%.0f", calories),
-                                    unit = "kcal",
-                                    icon = Icons.Rounded.LocalFireDepartment,
-                                    colors = listOf(Color(0xFFFF8008), Color(0xFFFFC837)),
-                                    noiseLevel = userProfile.uiNoiseLevel,
-                                    onClick = onCaloriesClick
-                                )
-                            }
-                        }
+                        PremiumAnimatedWaveCard(
+                            modifier = Modifier.weight(1f).height(125.dp),
+                            title = "Distance",
+                            value = String.format("%.2f", distance),
+                            unit = "km",
+                            icon = Icons.AutoMirrored.Rounded.DirectionsRun,
+                            colors = listOf(Color(0xFF9D50BB), Color(0xFF6E48AA)),
+                            noiseLevel = userProfile.uiNoiseLevel,
+                            onClick = onDistanceClick
+                        )
+                        PremiumAnimatedWaveCard(
+                            modifier = Modifier.weight(1f).height(125.dp),
+                            title = "Calories",
+                            value = String.format("%.0f", calories),
+                            unit = "kcal",
+                            icon = Icons.Rounded.LocalFireDepartment,
+                            colors = listOf(Color(0xFFFF8008), Color(0xFFFFC837)),
+                            noiseLevel = userProfile.uiNoiseLevel,
+                            onClick = onCaloriesClick
+                        )
+                        PremiumAnimatedWaveCard(
+                            modifier = Modifier.weight(1f).height(125.dp),
+                            title = "Pace",
+                            value = paceStr,
+                            unit = "min/km",
+                            icon = Icons.Rounded.Speed,
+                            colors = listOf(Color(0xFF00B4DB), Color(0xFF0083B0)),
+                            noiseLevel = userProfile.uiNoiseLevel,
+                            onClick = onDistanceClick
+                        )
                     }
                     
                     Spacer(modifier = Modifier.height(20.dp))

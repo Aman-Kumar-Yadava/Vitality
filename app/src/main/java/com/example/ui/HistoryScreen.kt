@@ -281,7 +281,8 @@ data class GraphBarItem(
     val subLabel: String,
     val steps: Float,
     val distanceKm: Float,
-    val caloriesBurned: Float
+    val caloriesBurned: Float,
+    val paceSeconds: Int = 0
 )
 
 @Composable
@@ -338,12 +339,12 @@ fun MetricGraphCard(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // Metric Selector Row (Steps, Distance, Calories) - Horizontal
+            // Metric Selector Row (Steps, Distance, Calories, Pace) - Horizontal
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                listOf("Steps", "Distance", "Calories").forEach { metric ->
+                listOf("Steps", "Distance", "Calories", "Pace").forEach { metric ->
                     val isSel = selectedMetric.equals(metric, ignoreCase = true)
                     Surface(
                         onClick = { onMetricSelected(metric) },
@@ -360,7 +361,7 @@ fun MetricGraphCard(
                                 text = metric,
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
-                                    fontSize = 11.sp
+                                    fontSize = 10.5.sp
                                 ),
                                 maxLines = 1
                             )
@@ -379,18 +380,21 @@ fun MetricGraphCard(
             val maxVal = when (selectedMetric) {
                 "Distance" -> (barItems.maxOfOrNull { it.distanceKm } ?: 5f).coerceAtLeast(0.5f)
                 "Calories" -> (barItems.maxOfOrNull { it.caloriesBurned } ?: 500f).coerceAtLeast(10f)
+                "Pace" -> (barItems.map { it.paceSeconds }.filter { it > 0 }.maxOrNull() ?: 900).toFloat()
                 else -> (barItems.maxOfOrNull { it.steps } ?: 10000f).coerceAtLeast(10f)
             }
 
             val barGradients = when (selectedMetric) {
                 "Distance" -> listOf(Color(0xFF00B0FF), Color(0xFF00E5FF))
                 "Calories" -> listOf(Color(0xFFFF3D00), Color(0xFFFF9100))
+                "Pace" -> listOf(Color(0xFF00B4DB), Color(0xFF0083B0))
                 else -> listOf(Color(0xFF7F00FF), Color(0xFFE100FF))
             }
 
             val unitDisplay = when (selectedMetric) {
                 "Distance" -> "km"
                 "Calories" -> "cal"
+                "Pace" -> "min/km"
                 else -> "steps"
             }
 
@@ -405,10 +409,22 @@ fun MetricGraphCard(
                     val rawVal = when (selectedMetric) {
                         "Distance" -> item.distanceKm
                         "Calories" -> item.caloriesBurned
+                        "Pace" -> if (item.paceSeconds > 0) item.paceSeconds.toFloat() else 0f
                         else -> item.steps
                     }
 
-                    val ratio = (rawVal / maxVal).coerceIn(if (rawVal > 0f) 0.08f else 0.02f, 1f)
+                    // For pace: faster speed / lower pace seconds should indicate better performance
+                    val ratio = if (selectedMetric == "Pace") {
+                        if (item.paceSeconds > 0 && maxVal > 0f) {
+                            // Scale so lower pace seconds produces taller performance bar
+                            val minPace = (barItems.map { it.paceSeconds }.filter { it > 0 }.minOrNull() ?: 300).toFloat()
+                            val inverted = (maxVal - item.paceSeconds + minPace).coerceAtLeast(minPace)
+                            (inverted / (maxVal + minPace * 0.2f)).coerceIn(0.15f, 1f)
+                        } else 0.02f
+                    } else {
+                        (rawVal / maxVal).coerceIn(if (rawVal > 0f) 0.08f else 0.02f, 1f)
+                    }
+
                     val animRatio by animateFloatAsState(
                         targetValue = ratio,
                         animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
@@ -418,6 +434,7 @@ fun MetricGraphCard(
                     val valDisplay = when (selectedMetric) {
                         "Distance" -> if (item.distanceKm > 0) String.format("%.1f", item.distanceKm) else "0"
                         "Calories" -> if (item.caloriesBurned > 0) String.format("%.0f", item.caloriesBurned) else "0"
+                        "Pace" -> com.example.data.FitnessCalculations.formatPace(item.paceSeconds)
                         else -> if (item.steps >= 1000) String.format("%.1fk", item.steps / 1000f) else "${item.steps.toInt()}"
                     }
 
@@ -434,14 +451,14 @@ fun MetricGraphCard(
                                 text = valDisplay,
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = Color(0xFF1E1E1E),
-                                fontSize = if (barItems.size > 8) 7.5.sp else 10.sp,
+                                fontSize = if (barItems.size > 8) 7.sp else 9.5.sp,
                                 maxLines = 1
                             )
                             Text(
                                 text = unitDisplay,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color.Gray,
-                                fontSize = if (barItems.size > 8) 6.5.sp else 8.5.sp,
+                                fontSize = if (barItems.size > 8) 6.sp else 8.sp,
                                 maxLines = 1
                             )
                         }
@@ -547,12 +564,17 @@ private fun buildGraphData(
                 "12" to "pm", "2" to "pm", "4" to "pm", "6" to "pm", "8" to "pm", "10" to "pm"
             )
             hourPairs.mapIndexed { i, (hour, period) ->
+                val dist = bucketDistance[i]
+                val stps = bucketSteps[i].toInt()
+                val activeMin = com.example.data.FitnessCalculations.calculateActiveDurationMinutes(stps, 100f)
+                val paceSec = com.example.data.FitnessCalculations.calculatePaceSecondsPerKm(dist, activeMin)
                 GraphBarItem(
                     mainLabel = hour,
                     subLabel = period,
                     steps = bucketSteps[i],
-                    distanceKm = bucketDistance[i],
-                    caloriesBurned = bucketCalories[i]
+                    distanceKm = dist,
+                    caloriesBurned = bucketCalories[i],
+                    paceSeconds = paceSec
                 )
             }
         }
@@ -575,13 +597,18 @@ private fun buildGraphData(
                 val weekNum = 4 - weekOffset
                 val startStr = "${startDay.month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)} ${startDay.dayOfMonth}"
                 val endStr = "${endDay.dayOfMonth}"
+                val totDist = matching.fold(0f) { acc, r -> acc + r.distanceKm }
+                val totSteps = matching.sumOf { it.steps }
+                val activeMin = com.example.data.FitnessCalculations.calculateActiveDurationMinutes(totSteps, 100f)
+                val paceSec = com.example.data.FitnessCalculations.calculatePaceSecondsPerKm(totDist, activeMin)
                 
                 GraphBarItem(
                     mainLabel = "W$weekNum",
                     subLabel = "$startStr-$endStr",
-                    steps = matching.sumOf { it.steps }.toFloat(),
-                    distanceKm = matching.fold(0f) { acc, r -> acc + r.distanceKm },
-                    caloriesBurned = matching.fold(0f) { acc, r -> acc + r.caloriesBurned }
+                    steps = totSteps.toFloat(),
+                    distanceKm = totDist,
+                    caloriesBurned = matching.fold(0f) { acc, r -> acc + r.caloriesBurned },
+                    paceSeconds = paceSec
                 )
             }
         }
@@ -602,12 +629,18 @@ private fun buildGraphData(
                 }
                 
                 val monthName = targetMonthDate.month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
+                val totDist = matching.fold(0f) { acc, r -> acc + r.distanceKm }
+                val totSteps = matching.sumOf { it.steps }
+                val activeMin = com.example.data.FitnessCalculations.calculateActiveDurationMinutes(totSteps, 100f)
+                val paceSec = com.example.data.FitnessCalculations.calculatePaceSecondsPerKm(totDist, activeMin)
+
                 GraphBarItem(
                     mainLabel = monthName,
                     subLabel = targetYear.toString().takeLast(2),
-                    steps = matching.sumOf { it.steps }.toFloat(),
-                    distanceKm = matching.fold(0f) { acc, r -> acc + r.distanceKm },
-                    caloriesBurned = matching.fold(0f) { acc, r -> acc + r.caloriesBurned }
+                    steps = totSteps.toFloat(),
+                    distanceKm = totDist,
+                    caloriesBurned = matching.fold(0f) { acc, r -> acc + r.caloriesBurned },
+                    paceSeconds = paceSec
                 )
             }
         }
@@ -616,12 +649,17 @@ private fun buildGraphData(
             if (last7.isNotEmpty()) {
                 last7.map { record ->
                     val (dayOfWeek, dateLabel) = formatGraphDate(record.dateString)
+                    val paceSec = if (record.paceSecondsPerKm > 0) record.paceSecondsPerKm else {
+                        val min = com.example.data.FitnessCalculations.calculateActiveDurationMinutes(record.steps, record.avgCadence.toFloat())
+                        com.example.data.FitnessCalculations.calculatePaceSecondsPerKm(record.distanceKm, min)
+                    }
                     GraphBarItem(
                         mainLabel = dayOfWeek.ifBlank { dateLabel },
                         subLabel = dateLabel,
                         steps = record.steps.toFloat(),
                         distanceKm = record.distanceKm,
-                        caloriesBurned = record.caloriesBurned
+                        caloriesBurned = record.caloriesBurned,
+                        paceSeconds = paceSec
                     )
                 }
             } else {
@@ -634,7 +672,8 @@ private fun buildGraphData(
                         subLabel = monthDay,
                         steps = 0f,
                         distanceKm = 0f,
-                        caloriesBurned = 0f
+                        caloriesBurned = 0f,
+                        paceSeconds = 0
                     )
                 }
             }
@@ -663,6 +702,10 @@ private fun formatGraphDate(dateStr: String): Pair<String, String> {
 
 @Composable
 fun HistoryItemCard(record: DailyStepRecord) {
+    val activeMin = if (record.activeTimeMinutes > 0) record.activeTimeMinutes.toFloat() else com.example.data.FitnessCalculations.calculateActiveDurationMinutes(record.steps, record.avgCadence.toFloat())
+    val paceSec = if (record.paceSecondsPerKm > 0) record.paceSecondsPerKm else com.example.data.FitnessCalculations.calculatePaceSecondsPerKm(record.distanceKm, activeMin)
+    val paceFormatted = com.example.data.FitnessCalculations.formatPaceWithUnit(paceSec)
+
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -678,17 +721,23 @@ fun HistoryItemCard(record: DailyStepRecord) {
                     color = Color(0xFF1E1E1E)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "${String.format("%.1f", record.distanceKm)} km",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.DarkGray
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "${String.format("%.0f", record.caloriesBurned)} kcal",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.DarkGray
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = paceFormatted,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = Color(0xFF0083B0)
                     )
                 }
             }
