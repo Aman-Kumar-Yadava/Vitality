@@ -223,7 +223,8 @@ fun CaloriesDetailsScreen(
                 ) {
                     CaloriesHistoryCard(
                         history = history,
-                        todayCalories = todayCalories
+                        todayCalories = todayCalories,
+                        noiseLevel = userProfile.uiNoiseLevel
                     )
                 }
             }
@@ -277,7 +278,8 @@ fun CaloriesDetailsScreen(
                         distanceKm = todayDistance,
                         gender = userProfile.gender,
                         metabolicFactor = metabolicFactor,
-                        caloriesBurned = todayCalories
+                        caloriesBurned = todayCalories,
+                        noiseLevel = userProfile.uiNoiseLevel
                     )
                 }
             }
@@ -288,7 +290,7 @@ fun CaloriesDetailsScreen(
                     visible = isVisible,
                     enter = fadeIn(animationSpec = tween(800)) + slideInVertically(initialOffsetY = { 140 }, animationSpec = tween(800))
                 ) {
-                    AboutCaloriesCard()
+                    AboutCaloriesCard(noiseLevel = userProfile.uiNoiseLevel)
                 }
             }
         }
@@ -432,7 +434,8 @@ fun TodayCaloriesCard(
 @Composable
 fun CaloriesHistoryCard(
     history: List<DailyStepRecord>,
-    todayCalories: Float
+    todayCalories: Float,
+    noiseLevel: Float = 0f
 ) {
     var selectedRange by remember { mutableStateOf("7 Days") }
     var dropdownExpanded by remember { mutableStateOf(false) }
@@ -483,13 +486,9 @@ fun CaloriesHistoryCard(
         }
     }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(8.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
-            .border(1.5.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(24.dp)),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.5f))
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        noiseLevel = noiseLevel
     ) {
         Column(
             modifier = Modifier
@@ -710,15 +709,12 @@ fun HowCaloriesCalculatedCard(
     distanceKm: Float,
     gender: String,
     metabolicFactor: Float,
-    caloriesBurned: Float
+    caloriesBurned: Float,
+    noiseLevel: Float = 0f
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(8.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
-            .border(1.5.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(24.dp)),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.5f))
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        noiseLevel = noiseLevel
     ) {
         Column(
             modifier = Modifier
@@ -927,14 +923,10 @@ fun CalculationFactorItem(
 }
 
 @Composable
-fun AboutCaloriesCard() {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(6.dp, RoundedCornerShape(20.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
-            .border(1.5.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(20.dp)),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.5f))
+fun AboutCaloriesCard(noiseLevel: Float = 0f) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        noiseLevel = noiseLevel
     ) {
         Row(
             modifier = Modifier

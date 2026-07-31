@@ -224,7 +224,8 @@ fun DistanceDetailsScreen(
                 ) {
                     DistanceHistoryCard(
                         history = history,
-                        todayDistance = todayDistance
+                        todayDistance = todayDistance,
+                        noiseLevel = userProfile.uiNoiseLevel
                     )
                 }
             }
@@ -277,7 +278,8 @@ fun DistanceDetailsScreen(
                         strideMeters = strideMeters,
                         heightCm = userProfile.heightCm,
                         gender = userProfile.gender,
-                        formulaStr = formulaStr
+                        formulaStr = formulaStr,
+                        noiseLevel = userProfile.uiNoiseLevel
                     )
                 }
             }
@@ -288,7 +290,7 @@ fun DistanceDetailsScreen(
                     visible = isVisible,
                     enter = fadeIn(animationSpec = tween(800)) + slideInVertically(initialOffsetY = { 140 }, animationSpec = tween(800))
                 ) {
-                    AboutDistanceCard()
+                    AboutDistanceCard(noiseLevel = userProfile.uiNoiseLevel)
                 }
             }
         }
@@ -435,7 +437,8 @@ fun TodayDistanceCard(
 @Composable
 fun DistanceHistoryCard(
     history: List<DailyStepRecord>,
-    todayDistance: Float
+    todayDistance: Float,
+    noiseLevel: Float = 0f
 ) {
     var selectedRange by remember { mutableStateOf("7 Days") }
     var dropdownExpanded by remember { mutableStateOf(false) }
@@ -488,13 +491,9 @@ fun DistanceHistoryCard(
         }
     }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(8.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
-            .border(1.5.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(24.dp)),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.5f))
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        noiseLevel = noiseLevel
     ) {
         Column(
             modifier = Modifier
@@ -710,15 +709,12 @@ fun StrideLengthCard(
     strideMeters: Float,
     heightCm: Float,
     gender: String,
-    formulaStr: String
+    formulaStr: String,
+    noiseLevel: Float = 0f
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(8.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
-            .border(1.5.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(24.dp)),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.5f))
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        noiseLevel = noiseLevel
     ) {
         Column(
             modifier = Modifier
@@ -937,14 +933,10 @@ fun SummaryCard(
 }
 
 @Composable
-fun AboutDistanceCard() {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(6.dp, RoundedCornerShape(20.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
-            .border(1.5.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(20.dp)),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.5f))
+fun AboutDistanceCard(noiseLevel: Float = 0f) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        noiseLevel = noiseLevel
     ) {
         Row(
             modifier = Modifier
