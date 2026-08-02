@@ -23,8 +23,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.automirrored.rounded.DirectionsRun
+import androidx.compose.material.icons.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.DirectionsRun
 import androidx.compose.material.icons.rounded.AccessTime
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
@@ -37,6 +37,8 @@ import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -70,7 +72,8 @@ import java.util.*
 fun DashboardScreen(
     viewModel: MainViewModel,
     onDistanceClick: (() -> Unit)? = null,
-    onCaloriesClick: (() -> Unit)? = null
+    onCaloriesClick: (() -> Unit)? = null,
+    onPaceClick: (() -> Unit)? = null
 ) {
     val currentSteps by viewModel.stepTrackerManager.currentSteps.collectAsStateWithLifecycle()
     val todayRecord by viewModel.todayRecord.collectAsStateWithLifecycle()
@@ -268,7 +271,14 @@ fun DashboardScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 260.dp, max = 340.dp)
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = 4.dp)
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(32.dp))
+                            .clickable {
+                                when (primaryMetric) {
+                                    "Distance" -> onDistanceClick?.invoke()
+                                    "Calories" -> onCaloriesClick?.invoke()
+                                }
+                            },
                         noiseLevel = userProfile.uiNoiseLevel
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -283,7 +293,10 @@ fun DashboardScreen(
                                 )
                             }
                             
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(vertical = 12.dp)
+                            ) {
                                 PulsingRunningIcon(modifier = Modifier.size(36.dp))
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
@@ -310,6 +323,48 @@ fun DashboardScreen(
                                         color = Color(0xFF5C6BC0)
                                     )
                                 }
+
+                            }
+                            
+                            // Pace Pill Button (matching screenshot)
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 20.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFEBF8FF))
+                                    .border(1.dp, Color(0xFFBAE6FD), CircleShape)
+                                    .clickable { onPaceClick?.invoke() }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(22.dp)
+                                            .background(Color(0xFFBAE6FD).copy(alpha = 0.5f), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Speed,
+                                            contentDescription = "Pace Logo",
+                                            tint = Color(0xFF0284C7),
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (paceStr == "--:--") "00:00" else paceStr,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        ),
+                                        color = Color(0xFF0369A1)
+                                    )
+                                }
                             }
                         }
                     }
@@ -320,36 +375,48 @@ fun DashboardScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        PremiumAnimatedWaveCard(
-                            modifier = Modifier.weight(1f).height(125.dp),
-                            title = "Distance",
-                            value = String.format("%.2f", distance),
-                            unit = "km",
-                            icon = Icons.AutoMirrored.Rounded.DirectionsRun,
-                            colors = listOf(Color(0xFF9D50BB), Color(0xFF6E48AA)),
-                            noiseLevel = userProfile.uiNoiseLevel,
-                            onClick = onDistanceClick
-                        )
-                        PremiumAnimatedWaveCard(
-                            modifier = Modifier.weight(1f).height(125.dp),
-                            title = "Calories",
-                            value = String.format("%.0f", calories),
-                            unit = "kcal",
-                            icon = Icons.Rounded.LocalFireDepartment,
-                            colors = listOf(Color(0xFFFF8008), Color(0xFFFFC837)),
-                            noiseLevel = userProfile.uiNoiseLevel,
-                            onClick = onCaloriesClick
-                        )
-                        PremiumAnimatedWaveCard(
-                            modifier = Modifier.weight(1f).height(125.dp),
-                            title = "Pace",
-                            value = paceStr,
-                            unit = "min/km",
-                            icon = Icons.Rounded.Speed,
-                            colors = listOf(Color(0xFF00B4DB), Color(0xFF0083B0)),
-                            noiseLevel = userProfile.uiNoiseLevel,
-                            onClick = onDistanceClick
-                        )
+                        val secondaryMetrics = listOf("Steps", "Distance", "Calories").filter { it != primaryMetric }
+                        
+                        secondaryMetrics.forEach { metric ->
+                            when (metric) {
+                                "Steps" -> {
+                                    PremiumAnimatedWaveCard(
+                                        modifier = Modifier.weight(1f).height(125.dp),
+                                        title = "Steps",
+                                        value = "$steps",
+                                        unit = "steps",
+                                        icon = Icons.Rounded.DirectionsWalk,
+                                        colors = listOf(Color(0xFF00C6FF), Color(0xFF0072FF)),
+                                        noiseLevel = userProfile.uiNoiseLevel,
+                                        onClick = null
+                                    )
+                                }
+                                "Distance" -> {
+                                    PremiumAnimatedWaveCard(
+                                        modifier = Modifier.weight(1f).height(125.dp),
+                                        title = "Distance",
+                                        value = String.format("%.2f", distance),
+                                        unit = "km",
+                                        icon = Icons.Rounded.DirectionsRun,
+                                        colors = listOf(Color(0xFF9D50BB), Color(0xFF6E48AA)),
+                                        noiseLevel = userProfile.uiNoiseLevel,
+                                        onClick = onDistanceClick
+                                    )
+                                }
+                                "Calories" -> {
+                                    PremiumAnimatedWaveCard(
+                                        modifier = Modifier.weight(1f).height(125.dp),
+                                        title = "Calories",
+                                        value = String.format("%.0f", calories),
+                                        unit = "kcal",
+                                        icon = Icons.Rounded.LocalFireDepartment,
+                                        colors = listOf(Color(0xFFFF8008), Color(0xFFFFC837)),
+                                        noiseLevel = userProfile.uiNoiseLevel,
+                                        onClick = onCaloriesClick
+                                    )
+                                }
+                            }
+                        }
                     }
                     
                     Spacer(modifier = Modifier.height(20.dp))
@@ -364,6 +431,7 @@ fun DashboardScreen(
                             Box(
                                 modifier = Modifier
                                     .offset(y = arrowOffsetY.dp)
+                                    .clip(CircleShape)
                                     .clickable { hasScrolledDown = true }
                                     .shadow(4.dp, CircleShape)
                                     .background(
@@ -468,6 +536,7 @@ fun SessionCard(session: WalkingSession, noiseLevel: Float, onClick: () -> Unit)
     GlassCard(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(32.dp))
             .clickable { onClick() },
         noiseLevel = noiseLevel
     ) {
@@ -555,7 +624,7 @@ fun StatCard(
                     }
                     
                     Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                        imageVector = Icons.Rounded.ArrowForward,
                         contentDescription = null,
                         tint = Color.White.copy(alpha = 0.7f),
                         modifier = Modifier.size(18.dp)
@@ -865,7 +934,12 @@ fun SessionSummaryModal(
                 }
 
                 // Body content
-                Column(modifier = Modifier.padding(20.dp)) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .padding(20.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
                     // Time & Duration Card
                     Surface(
                         shape = RoundedCornerShape(20.dp),
@@ -918,7 +992,7 @@ fun SessionSummaryModal(
                     ) {
                         SessionMetricTile(
                             modifier = Modifier.weight(1f),
-                            icon = Icons.AutoMirrored.Rounded.DirectionsRun,
+                            icon = Icons.Rounded.DirectionsRun,
                             value = String.format("%.2f km", session.distanceKm),
                             label = "Distance",
                             color = Color(0xFF00B0FF)
@@ -1004,6 +1078,26 @@ fun SessionSummaryModal(
                         )
                     }
 
+                    Spacer(modifier = Modifier.height(18.dp))
+                    
+                    // Session Dynamics Graph
+                    val sessionStride = if (session.steps > 0) (session.distanceKm * 1000f) / session.steps else 0f
+                    val sessionMet = com.example.data.FitnessCalculations.determineMetFromSpeed(speedKmH)
+                    SessionDynamicsChart(
+                        strideMeters = sessionStride,
+                        metValue = sessionMet,
+                        isVisible = isVisible
+                    )
+                    
+                    if (session.distanceKm > 0) {
+                        Spacer(modifier = Modifier.height(18.dp))
+                        KilometerSplitsTable(
+                            distanceKm = session.distanceKm,
+                            sessionStrideMeters = sessionStride,
+                            sessionMet = sessionMet
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(20.dp))
 
                     // Close Button
@@ -1086,4 +1180,176 @@ private fun SessionMetricTile(
             )
         }
     }
+}
+
+@Composable
+private fun SessionDynamicsChart(
+    strideMeters: Float,
+    metValue: Float,
+    isVisible: Boolean
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF9FAFC), RoundedCornerShape(16.dp))
+            .padding(14.dp)
+    ) {
+        Text(
+            text = "Session Dynamics",
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+            color = Color(0xFF1E1E1E)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Stride Length Graph Bar
+        DynamicGraphBar(
+            label = "Dynamic Stride Length",
+            valueText = String.format("%.2f m", strideMeters),
+            fillRatio = (strideMeters / 1.5f).coerceIn(0f, 1f), // Max stride reference 1.5m
+            color = Color(0xFF00B0FF),
+            isVisible = isVisible
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // MET Value Graph Bar
+        DynamicGraphBar(
+            label = "Dynamic MET Intensity",
+            valueText = String.format("%.1f METs", metValue),
+            fillRatio = (metValue / 12f).coerceIn(0f, 1f), // Max MET reference 12
+            color = Color(0xFFFF3D00),
+            isVisible = isVisible
+        )
+    }
+}
+
+@Composable
+private fun DynamicGraphBar(
+    label: String,
+    valueText: String,
+    fillRatio: Float,
+    color: Color,
+    isVisible: Boolean
+) {
+    val animRatio by animateFloatAsState(
+        targetValue = if (isVisible) fillRatio else 0f,
+        animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+        label = "graphBarAnim"
+    )
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.Gray
+            )
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                color = color
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.05f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(animRatio)
+                    .clip(CircleShape)
+                    .background(color)
+            )
+        }
+    }
+}
+
+@Composable
+private fun KilometerSplitsTable(
+    distanceKm: Float,
+    sessionStrideMeters: Float,
+    sessionMet: Float
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF9FAFC), RoundedCornerShape(16.dp))
+            .padding(14.dp)
+    ) {
+        Text(
+            text = "Estimated Kilometer Splits",
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+            color = Color(0xFF1E1E1E)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Table Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(text = "KM", style = MaterialTheme.typography.labelSmall, color = Color.Gray, modifier = Modifier.weight(1f))
+            Text(text = "Stride", style = MaterialTheme.typography.labelSmall, color = Color.Gray, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            Text(text = "MET", style = MaterialTheme.typography.labelSmall, color = Color.Gray, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+        }
+
+        HorizontalDivider(color = Color.Black.copy(alpha = 0.05f))
+
+        val fullKms = distanceKm.toInt()
+        val remainderKm = distanceKm - fullKms
+
+        for (i in 1..fullKms) {
+            SplitRow(kmLabel = "$i", strideMeters = sessionStrideMeters, metValue = sessionMet)
+        }
+        if (remainderKm > 0.01f) {
+            SplitRow(
+                kmLabel = String.format("%.2f", fullKms + remainderKm),
+                strideMeters = sessionStrideMeters,
+                metValue = sessionMet
+            )
+        }
+    }
+}
+
+@Composable
+private fun SplitRow(kmLabel: String, strideMeters: Float, metValue: Float) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = kmLabel,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            color = Color(0xFF1E1E1E),
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = String.format("%.2f m", strideMeters),
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.DarkGray,
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.Center
+        )
+        Text(
+            text = String.format("%.1f", metValue),
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.DarkGray,
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.End
+        )
+    }
+    HorizontalDivider(color = Color.Black.copy(alpha = 0.05f))
 }

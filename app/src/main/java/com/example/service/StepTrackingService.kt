@@ -1,4 +1,5 @@
 package com.example.service
+import kotlinx.coroutines.flow.first
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -95,7 +96,7 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
         )
 
         notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification_shoe)
             .setContentTitle("Step Tracker")
             .setContentText("Active in background")
             .setContentIntent(pendingIntent)
@@ -128,8 +129,9 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
             while (true) {
                 kotlinx.coroutines.delay(1000L) // every second
                 val steps = app.stepTrackerManager.currentSteps.value
-                val distance = app.stepRepository.calculateDistance(steps, currentUserProfile)
-                val calories = app.stepRepository.calculateCalories(distance, currentUserProfile)
+                val currentCadence = app.stepTrackerManager.currentCadence
+                val distance = app.stepRepository.calculateDistance(steps, currentUserProfile, currentCadence)
+                val calories = app.stepRepository.calculateCalories(distance, currentUserProfile, 0f, currentCadence)
                 
                 // Only update notification every 5 seconds OR if steps changed
                 val now = System.currentTimeMillis()
@@ -205,6 +207,17 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
         }
     }
 
+    private fun syncLastAnnouncedMetrics(steps: Int, distance: Float, calories: Float) {
+        val stepsInterval = currentUserProfile.announceStepsInterval
+        lastAnnouncedSteps = if (stepsInterval > 0) (steps / stepsInterval) * stepsInterval else steps
+
+        val distanceInterval = currentUserProfile.announceDistanceIntervalKm
+        lastAnnouncedDistanceKm = if (distanceInterval > 0f) ((distance / distanceInterval).toInt()) * distanceInterval else distance
+
+        val calInterval = currentUserProfile.announceCaloriesInterval
+        lastAnnouncedCalories = if (calInterval > 0f) ((calories / calInterval).toInt()) * calInterval else calories
+    }
+
     private fun updateTtsSettings() {
         if (!isTtsInitialized) return
         tts.setSpeechRate(currentUserProfile.speechRate)
@@ -214,26 +227,37 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                val startSteps = app.stepTrackerManager.currentSteps.value
-                val startDist = app.stepRepository.calculateDistance(startSteps, currentUserProfile)
-                val startCal = app.stepRepository.calculateCalories(startDist, currentUserProfile)
-                
-                sessionStartSteps = startSteps
-                sessionStartDistanceKm = startDist
-                sessionStartCalories = startCal
-                
-                app.stepTrackerManager.startTracking()
-                
-                val goalSteps = currentUserProfile.dailyStepGoal
-                val goalDist = currentUserProfile.dailyDistanceGoalKm
-                val goalCal = currentUserProfile.dailyCaloriesGoal
-                
-                val startMsg = "Walking session started. Your daily goals are $goalSteps steps, ${String.format("%.1f", goalDist)} kilometers, and $goalCal calories. Before starting this session, you have completed $startSteps steps, ${String.format("%.2f", startDist)} kilometers, and burned ${startCal.toInt()} calories today."
-                
-                if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
-                    announce(startMsg)
-                } else {
-                    pendingStartAnnouncement = startMsg
+                serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    val profile = app.userPrefsRepository.userProfileFlow.first()
+                    currentUserProfile = profile
+                    
+                    val startSteps = app.stepTrackerManager.currentSteps.value
+                    
+                    val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+                    val record = app.stepRepository.getRecordForDateSync(today)
+                    
+                    val startDist = record?.distanceKm ?: 0f
+                    val startCal = record?.caloriesBurned ?: 0f
+                    
+                    sessionStartSteps = startSteps
+                    sessionStartDistanceKm = startDist
+                    sessionStartCalories = startCal
+                    
+                    syncLastAnnouncedMetrics(startSteps, startDist, startCal)
+                    
+                    app.stepTrackerManager.startTracking()
+                    
+                    val goalSteps = currentUserProfile.dailyStepGoal
+                    val goalDist = currentUserProfile.dailyDistanceGoalKm
+                    val goalCal = currentUserProfile.dailyCaloriesGoal
+                    
+                    val startMsg = "Walking session started. Your daily goals are $goalSteps steps, ${String.format("%.1f", goalDist)} kilometers, and $goalCal calories. Before starting this session, you have completed $startSteps steps, ${String.format("%.2f", startDist)} kilometers, and burned ${startCal.toInt()} calories today."
+                    
+                    if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
+                        announce(startMsg)
+                    } else {
+                        pendingStartAnnouncement = startMsg
+                    }
                 }
             }
             ACTION_PAUSE -> {
@@ -243,39 +267,54 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
                 }
             }
             ACTION_RESUME -> {
+                serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    val steps = app.stepTrackerManager.currentSteps.value
+                    val cadence = app.stepTrackerManager.currentCadence
+                    val dist = app.stepRepository.calculateDistance(steps, currentUserProfile, cadence)
+                    val cal = app.stepRepository.calculateCalories(dist, currentUserProfile, 0f, cadence)
+                    syncLastAnnouncedMetrics(steps, dist, cal)
+                }
                 app.stepTrackerManager.startTracking()
                 if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
                     announce("Walking resumed")
                 }
             }
             ACTION_STOP -> {
-                val currentSteps = app.stepTrackerManager.currentSteps.value
-                val currentDist = app.stepRepository.calculateDistance(currentSteps, currentUserProfile)
-                val currentCal = app.stepRepository.calculateCalories(currentDist, currentUserProfile)
-                
-                val sessionSteps = (currentSteps - sessionStartSteps).coerceAtLeast(0)
-                val sessionDist = app.stepRepository.calculateDistance(sessionSteps, currentUserProfile)
-                val sessionCal = app.stepRepository.calculateCalories(sessionDist, currentUserProfile)
-                
-                app.stepTrackerManager.stopTracking()
-                
-                val goalSteps = currentUserProfile.dailyStepGoal
-                val goalDist = currentUserProfile.dailyDistanceGoalKm
-                val goalCal = currentUserProfile.dailyCaloriesGoal
-                
-                val stopMsg = "Walking session stopped. In this session, you walked $sessionSteps steps, ${String.format("%.2f", sessionDist)} kilometers, and burned ${sessionCal.toInt()} calories. Today overall, you have reached $currentSteps of $goalSteps steps, ${String.format("%.2f", currentDist)} of ${String.format("%.1f", goalDist)} kilometers, and ${currentCal.toInt()} of $goalCal calories."
-                
-                if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
-                    announce(stopMsg)
+                serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    val profile = app.userPrefsRepository.userProfileFlow.first()
+                    currentUserProfile = profile
+                    
+                    val currentSteps = app.stepTrackerManager.currentSteps.value
+                    val currentCadence = app.stepTrackerManager.currentCadence
+                    val currentDist = app.stepRepository.calculateDistance(currentSteps, currentUserProfile, currentCadence)
+                    val currentCal = app.stepRepository.calculateCalories(currentDist, currentUserProfile, 0f, currentCadence)
+                    
+                    val sessionSteps = (currentSteps - sessionStartSteps).coerceAtLeast(0)
+                    val sessionDist = (currentDist - sessionStartDistanceKm).coerceAtLeast(0f)
+                    val sessionCal = (currentCal - sessionStartCalories).coerceAtLeast(0f)
+                    
+                    app.stepTrackerManager.stopTracking()
+                    
+                    val goalSteps = currentUserProfile.dailyStepGoal
+                    val goalDist = currentUserProfile.dailyDistanceGoalKm
+                    val goalCal = currentUserProfile.dailyCaloriesGoal
+                    
+                    val stopMsg = "Walking session stopped. In this session, you walked $sessionSteps steps, ${String.format("%.2f", sessionDist)} kilometers, and burned ${sessionCal.toInt()} calories. Today overall, you have reached $currentSteps of $goalSteps steps, ${String.format("%.2f", currentDist)} of ${String.format("%.1f", goalDist)} kilometers, and ${currentCal.toInt()} of $goalCal calories."
+                    
+                    if (isTtsInitialized && currentUserProfile.announcementsEnabled) {
+                        announce(stopMsg)
+                    }
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf()
+                    }
                 }
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
             }
             ACTION_PASSIVE_START -> {
                 // Passive tracking: keep service registered without starting active walking session
             }
         }
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     override fun onInit(status: Int) {
@@ -396,6 +435,7 @@ class StepTrackingService : Service(), TextToSpeech.OnInitListener {
         super.onDestroy()
         serviceJob.cancel()
         if (isTtsInitialized) {
+            tts.setOnUtteranceProgressListener(null)
             tts.stop()
             tts.shutdown()
         }

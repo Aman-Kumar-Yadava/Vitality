@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -22,6 +23,7 @@ class StepTrackerManager(
 ) : SensorEventListener {
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val stepSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+    private val stepDetectorSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)
     
     private val _currentSteps = MutableStateFlow(0)
     val currentSteps: StateFlow<Int> = _currentSteps
@@ -30,7 +32,14 @@ class StepTrackerManager(
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
+    private var trackingDate = dateFormat.format(Date())
     private var lastSavedSteps = 0
+    private var lastDbSaveSteps = 0
+    private var isInitialized = false
+    private var isDatabaseLoading = false
+    private var latestTotalSteps = -1f
+
+    private val prefs = context.getSharedPreferences("step_tracker_prefs", Context.MODE_PRIVATE)
 
     private var currentSessionStartTime = 0L
     private var sessionStartTotalSteps = 0
@@ -45,6 +54,27 @@ class StepTrackerManager(
             _currentSteps.value = record?.steps ?: 0
         }
         initializePassiveTracking()
+        startDateCheckLoop()
+    }
+
+    private fun startDateCheckLoop() {
+        coroutineScope.launch {
+            while (isActive) {
+                val today = getCurrentDateString()
+                if (trackingDate != today) {
+                    trackingDate = today
+                    isInitialized = false
+                    val record = repository.getRecordForDateSync(today)
+                    val dbSteps = record?.steps ?: 0
+                    lastSavedSteps = dbSteps
+                    lastDbSaveSteps = dbSteps
+                    _currentSteps.value = dbSteps
+                    
+                    updateWidget()
+                }
+                kotlinx.coroutines.delay(60_000L) // Check every minute
+            }
+        }
     }
 
     private fun initializePassiveTracking() {
@@ -55,13 +85,31 @@ class StepTrackerManager(
                 e.printStackTrace()
             }
         }
+        stepDetectorSensor?.let {
+            try {
+                sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     fun reRegisterSensor() {
+        try {
+            sensorManager.unregisterListener(this)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         stepSensor?.let {
             try {
-                sensorManager.unregisterListener(this)
                 sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        stepDetectorSensor?.let {
+            try {
+                sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -89,6 +137,14 @@ class StepTrackerManager(
         private set
 
     override fun onSensorChanged(event: SensorEvent?) {
+        if (event?.sensor?.type == Sensor.TYPE_STEP_DETECTOR) {
+            // Instant feedback for UI jump bug
+            if (isInitialized && initialStepCount != -1f) {
+                _currentSteps.value += 1
+            }
+            return
+        }
+
         if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
             val totalSteps = event.values[0]
             val now = System.currentTimeMillis()
@@ -108,28 +164,91 @@ class StepTrackerManager(
                 }
             }
             
-            if (initialStepCount == -1f) {
+            latestTotalSteps = totalSteps
+            val today = getCurrentDateString()
+            if (trackingDate != today) {
+                // Day changed, check if we missed steps before resetting
+                val lastSensorSteps = prefs.getFloat("last_sensor_steps", -1f)
+                if (lastSensorSteps != -1f && totalSteps > lastSensorSteps) {
+                    val missedSteps = (totalSteps - lastSensorSteps).toInt()
+                    val yesterday = trackingDate
+                    coroutineScope.launch {
+                        val record = repository.getRecordForDateSync(yesterday)
+                        val prevDbSteps = record?.steps ?: 0
+                        repository.updateStepsForDate(yesterday, prevDbSteps + missedSteps, currentCadence)
+                    }
+                    prefs.edit().putFloat("last_sensor_steps", totalSteps).apply()
+                }
+
+                // Reset the tracking logic for the new day
+                trackingDate = today
+                isInitialized = false
+            }
+
+            if (!isInitialized) {
+                isInitialized = true
+                isDatabaseLoading = true
                 initialStepCount = totalSteps
                 coroutineScope.launch {
-                   val today = getCurrentDateString()
-                   val record = repository.getRecordForDateSync(today)
-                   lastSavedSteps = record?.steps ?: 0
-                   _currentSteps.value = lastSavedSteps
+                    try {
+                        val record = repository.getRecordForDateSync(today)
+                        var currentDbSteps = record?.steps ?: 0
+                        
+                        // Recover missed steps if the service was killed or day rolled over
+                        val lastSensorSteps = prefs.getFloat("last_sensor_steps", -1f)
+                        
+                        if (lastSensorSteps != -1f && totalSteps > lastSensorSteps) {
+                            val missedSteps = (totalSteps - lastSensorSteps).toInt()
+                            currentDbSteps += missedSteps
+                            repository.updateStepsForDate(today, currentDbSteps, currentCadence)
+                        }
+                        
+                        lastSavedSteps = currentDbSteps
+                        lastDbSaveSteps = currentDbSteps
+                        
+                        val newSteps = (latestTotalSteps - initialStepCount).toInt()
+                        val totalToday = lastSavedSteps + newSteps
+                        if (totalToday > _currentSteps.value) {
+                            _currentSteps.value = totalToday
+                        }
+                        if (totalToday - lastDbSaveSteps >= 10 || totalToday < lastDbSaveSteps) {
+                            lastDbSaveSteps = totalToday
+                            saveStepsToDb(totalToday)
+                            updateWidget()
+                        }
+                    } finally {
+                        isDatabaseLoading = false
+                    }
                 }
-            } else {
-                val newSteps = (totalSteps - initialStepCount).toInt()
-                val totalToday = lastSavedSteps + newSteps
-                _currentSteps.value = totalToday
-                
-                // Only save to DB and update widget periodically to avoid UI thread spam
-                // e.g. every 10 steps
-                if (totalToday % 10 == 0) {
-                    saveStepsToDb(totalToday)
-                    updateWidget()
-                }
-                
-                lastStepTime = now
+                return
             }
+            if (isDatabaseLoading) return
+            
+            val newSteps = (totalSteps - initialStepCount).toInt()
+            val totalToday = lastSavedSteps + newSteps
+            
+            // Sync with detector's optimistic counting
+            if (totalToday > _currentSteps.value) {
+                _currentSteps.value = totalToday
+            } else if (totalToday < _currentSteps.value - 20) { 
+                // If detector overcounted significantly, reset to counter truth
+                _currentSteps.value = totalToday
+            }
+            
+            // Only save to DB and update widget periodically to avoid UI thread spam
+            // e.g. every 10 steps
+            if (totalToday - lastDbSaveSteps >= 10 || totalToday < lastDbSaveSteps) {
+                lastDbSaveSteps = totalToday
+                saveStepsToDb(totalToday)
+                updateWidget()
+            }
+            
+            prefs.edit()
+                .putString("last_sensor_date", today)
+                .putFloat("last_sensor_steps", totalSteps)
+                .apply()
+            
+            lastStepTime = now
         }
     }
 
@@ -170,7 +289,12 @@ class StepTrackerManager(
     
     private fun updateWidget() {
         coroutineScope.launch {
-            com.example.widget.HealthWidget().updateAll(context)
+            try {
+                com.example.widget.HealthWidget().updateAll(context)
+                com.example.widget.TransparentHealthWidget().updateAll(context)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
     
@@ -196,7 +320,9 @@ class StepTrackerManager(
 
             _currentSteps.value = newTotal
             lastSavedSteps = newTotal
+            lastDbSaveSteps = newTotal
             initialStepCount = -1f
+            isInitialized = false
             
             updateWidget()
         }
@@ -212,7 +338,9 @@ class StepTrackerManager(
             repository.updateCustomDataForDate(today, steps, distance, calories)
             _currentSteps.value = steps
             lastSavedSteps = steps
+            lastDbSaveSteps = steps
             initialStepCount = -1f
+            isInitialized = false
             updateWidget()
         }
     }

@@ -18,19 +18,20 @@ object FitnessCalculations {
 
     /**
      * Stride multiplier based on cadence (steps/min).
-     * Slow (<80): 0.95
-     * Normal (80-110): 1.00
-     * Fast (110-130): 1.05
-     * Very fast (>130): 1.10
      */
     fun getCadenceMultiplier(cadenceStepsPerMin: Float): Float {
-        return when {
-            cadenceStepsPerMin <= 0f -> 1.00f
-            cadenceStepsPerMin < 80f -> 0.95f
-            cadenceStepsPerMin <= 110f -> 1.00f
-            cadenceStepsPerMin <= 130f -> 1.05f
-            else -> 1.10f
-        }
+        if (cadenceStepsPerMin <= 0f) return 1.00f
+        
+        // Smoothly scale the multiplier based on cadence.
+        // Assuming a baseline cadence of 100 spm = 1.0 multiplier.
+        // For every 1 step per minute increase, stride increases by a fraction.
+        val baseCadence = 100f
+        val adjustmentPerStep = 0.0015f // 0.15% stride increase per spm
+        
+        val multiplier = 1.0f + ((cadenceStepsPerMin - baseCadence) * adjustmentPerStep)
+        
+        // Clamp the limits to prevent extreme edge cases
+        return multiplier.coerceIn(0.85f, 1.20f)
     }
 
     /**
@@ -101,56 +102,68 @@ object FitnessCalculations {
     }
 
     /**
-     * Select MET value automatically based on speed (km/h) or pace (min/km).
-     * Very slow (<3.2 km/h): 2.0 MET
-     * Slow (3.2 - 4.0 km/h): 2.8 MET
-     * Normal (4.0 - 5.2 km/h): 3.5 MET
-     * Brisk (5.2 - 6.0 km/h): 4.3 MET
-     * Fast (6.0 - 7.2 km/h): 5.0 MET
-     * Very fast (>7.2 km/h): 6.3 MET
+     * Select MET value dynamically based on walking/running speed (km/h).
+     * Uses continuous dynamic ACSM equations for precise MET recalculation:
+     * - Rest / Minimal movement (<1.0 km/h): 1.2 - 2.0 METs
+     * - Slow Walk (1.0 - 3.2 km/h): 2.0 - 2.8 METs
+     * - Moderate Walk (3.2 - 5.0 km/h): 2.8 - 3.8 METs
+     * - Brisk Walk (5.0 - 6.5 km/h): 3.8 - 5.0 METs
+     * - Fast / Power Walk (6.5 - 8.0 km/h): 5.0 - 7.5 METs
+     * - Jogging / Running (>8.0 km/h): 7.5 - 12.0+ METs
      */
     fun determineMetFromSpeed(speedKmh: Float): Float {
+        if (speedKmh <= 0f) return 3.5f // Default moderate walking baseline MET
         return when {
-            speedKmh <= 0f -> 3.5f
-            speedKmh < 3.2f -> 2.0f
-            speedKmh < 4.0f -> 2.8f
-            speedKmh < 5.2f -> 3.5f
-            speedKmh < 6.0f -> 4.3f
-            speedKmh < 7.2f -> 5.0f
-            else -> 6.3f
+            speedKmh < 1.0f -> 1.2f + (speedKmh / 1.0f) * 0.8f
+            speedKmh < 3.2f -> 2.0f + ((speedKmh - 1.0f) / 2.2f) * 0.8f
+            speedKmh < 5.0f -> 2.8f + ((speedKmh - 3.2f) / 1.8f) * 1.0f
+            speedKmh < 6.5f -> 3.8f + ((speedKmh - 5.0f) / 1.5f) * 1.2f
+            speedKmh < 8.0f -> 5.0f + ((speedKmh - 6.5f) / 1.5f) * 2.5f
+            speedKmh < 12.0f -> 7.5f + ((speedKmh - 8.0f) / 4.0f) * 4.0f
+            else -> (11.5f + (speedKmh - 12.0f) * 0.8f).coerceAtMost(16.0f)
         }
     }
 
     /**
-     * Select MET based on pace seconds per km.
+     * Calculate MET dynamically from cadence (steps per minute).
+     */
+    fun determineMetFromCadence(
+        cadenceStepsPerMin: Float,
+        heightCm: Float = 170f,
+        gender: String = "Male"
+    ): Float {
+        if (cadenceStepsPerMin <= 0f) return 3.5f
+        val strideMeters = calculateAdaptiveStrideMeters(heightCm, gender, cadenceStepsPerMin)
+        val speedKmh = (cadenceStepsPerMin * strideMeters * 60f) / 1000f
+        return determineMetFromSpeed(speedKmh)
+    }
+
+    /**
+     * Select MET dynamically based on pace in seconds per km or fallback speed.
      */
     fun determineMetFromPaceSeconds(paceSecondsPerKm: Int, fallbackSpeedKmh: Float = 0f): Float {
-        if (paceSecondsPerKm <= 0) return determineMetFromSpeed(fallbackSpeedKmh)
-        val paceMinKm = paceSecondsPerKm / 60f
-        return when {
-            paceMinKm > 18.75f -> 2.0f // < 3.2 km/h
-            paceMinKm > 15.00f -> 2.8f // 3.2 - 4.0 km/h
-            paceMinKm > 11.54f -> 3.5f // 4.0 - 5.2 km/h
-            paceMinKm > 10.00f -> 4.3f // 5.2 - 6.0 km/h
-            paceMinKm > 8.33f -> 5.0f  // 6.0 - 7.2 km/h
-            else -> 6.3f                // > 7.2 km/h
+        if (paceSecondsPerKm <= 0) {
+            return determineMetFromSpeed(fallbackSpeedKmh)
         }
+        val speedKmh = 3600f / paceSecondsPerKm.toFloat()
+        return determineMetFromSpeed(speedKmh)
     }
 
     /**
-     * Calculate Active Calories burned = MET * Weight (kg) * Duration (hours)
+     * Calculate Active Calories burned = (MET - 1.0) * Weight (kg) * Duration (hours)
      */
     fun calculateActiveCalories(met: Float, weightKg: Float, durationHours: Float): Float {
         if (weightKg <= 0f || durationHours <= 0f) return 0f
-        return (met * weightKg * durationHours).coerceAtLeast(0f)
+        return ((met - 1.0f) * weightKg * durationHours).coerceAtLeast(0f)
     }
 
     /**
-     * Calculate Estimated Total Calories = Active Calories + BMR during duration.
-     * BMR factor ~ 1.0 kcal / kg / hour.
+     * Calculate Estimated Total Calories = MET * Weight (kg) * Duration (hours)
      */
     fun calculateTotalCalories(activeCalories: Float, weightKg: Float, durationHours: Float): Float {
         if (durationHours <= 0f) return activeCalories
+        // Instead of adding BMR on top, Total (Gross) Calories is just activeCalories + BMR during duration.
+        // Wait, since activeCalories is now (MET-1.0)*W*H, adding BMR (1.0*W*H) gets us back to MET*W*H.
         val bmrCalories = 1.0f * weightKg * durationHours
         return activeCalories + bmrCalories
     }

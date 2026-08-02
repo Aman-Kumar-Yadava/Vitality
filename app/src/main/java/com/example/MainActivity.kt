@@ -24,13 +24,8 @@ class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        val activityGranted = permissions[Manifest.permission.ACTIVITY_RECOGNITION] ?: (
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACTIVITY_RECOGNITION
-            ) == PackageManager.PERMISSION_GRANTED
-        )
-        if (activityGranted) {
+        val justGrantedActivity = permissions[Manifest.permission.ACTIVITY_RECOGNITION] == true
+        if (justGrantedActivity) {
             (application as? VitalityApplication)?.stepTrackerManager?.reRegisterSensor()
         }
     }

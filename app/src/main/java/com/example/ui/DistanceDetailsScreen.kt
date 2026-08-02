@@ -16,14 +16,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.DirectionsRun
-import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.DirectionsRun
+import androidx.compose.material.icons.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.DateRange
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.ShowChart
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -63,7 +64,8 @@ data class ChartPointData(
 @Composable
 fun DistanceDetailsScreen(
     viewModel: MainViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onPaceClick: (() -> Unit)? = null
 ) {
     val history by viewModel.allRecords.collectAsStateWithLifecycle()
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
@@ -74,9 +76,7 @@ fun DistanceDetailsScreen(
     val todayDistance = todayRecord?.distanceKm ?: (currentSteps * (if (userProfile.gender == "Male") userProfile.heightCm * 0.00415f else userProfile.heightCm * 0.00413f) / 1000f)
 
     // Calculate yesterday distance for comparison
-    val calendar = Calendar.getInstance()
-    calendar.add(Calendar.DAY_OF_YEAR, -1)
-    val yesterdayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
+    val yesterdayStr = java.time.LocalDate.now().minusDays(1).toString()
     val yesterdayRecord = history.find { it.dateString == yesterdayStr }
     val yesterdayDistance = yesterdayRecord?.distanceKm ?: 0f
 
@@ -101,25 +101,26 @@ fun DistanceDetailsScreen(
     val adaptiveStrideMeters = com.example.data.FitnessCalculations.calculateAdaptiveStrideMeters(
         userProfile.heightCm, userProfile.gender, currentCadence
     )
+    val todayAvgStrideMeters = if (currentSteps > 0) {
+        (todayDistance * 1000f) / currentSteps
+    } else {
+        adaptiveStrideMeters
+    }
 
     // Weekly & Monthly calculations
-    val now = Calendar.getInstance()
+    val todayDate = java.time.LocalDate.now()
     val thisWeekRecords = history.filter { rec ->
         try {
-            val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(rec.dateString)
-            if (date != null) {
-                val diff = (now.timeInMillis - date.time) / (1000 * 60 * 60 * 24)
-                diff in 0..6
-            } else false
+            val recDate = java.time.LocalDate.parse(rec.dateString)
+            val diff = java.time.temporal.ChronoUnit.DAYS.between(recDate, todayDate)
+            diff in 0..6
         } catch (e: Exception) { false }
     }
     val lastWeekRecords = history.filter { rec ->
         try {
-            val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(rec.dateString)
-            if (date != null) {
-                val diff = (now.timeInMillis - date.time) / (1000 * 60 * 60 * 24)
-                diff in 7..13
-            } else false
+            val recDate = java.time.LocalDate.parse(rec.dateString)
+            val diff = java.time.temporal.ChronoUnit.DAYS.between(recDate, todayDate)
+            diff in 7..13
         } catch (e: Exception) { false }
     }
     val thisWeekDist = thisWeekRecords.sumOf { it.distanceKm.toDouble() }.toFloat().let { if (it == 0f) todayDistance else it }
@@ -128,20 +129,16 @@ fun DistanceDetailsScreen(
 
     val thisMonthRecords = history.filter { rec ->
         try {
-            val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(rec.dateString)
-            if (date != null) {
-                val diff = (now.timeInMillis - date.time) / (1000 * 60 * 60 * 24)
-                diff in 0..29
-            } else false
+            val recDate = java.time.LocalDate.parse(rec.dateString)
+            val diff = java.time.temporal.ChronoUnit.DAYS.between(recDate, todayDate)
+            diff in 0..29
         } catch (e: Exception) { false }
     }
     val lastMonthRecords = history.filter { rec ->
         try {
-            val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(rec.dateString)
-            if (date != null) {
-                val diff = (now.timeInMillis - date.time) / (1000 * 60 * 60 * 24)
-                diff in 30..59
-            } else false
+            val recDate = java.time.LocalDate.parse(rec.dateString)
+            val diff = java.time.temporal.ChronoUnit.DAYS.between(recDate, todayDate)
+            diff in 30..59
         } catch (e: Exception) { false }
     }
     val thisMonthDist = thisMonthRecords.sumOf { it.distanceKm.toDouble() }.toFloat().let { if (it == 0f) todayDistance * 3.5f else it }
@@ -190,11 +187,12 @@ fun DistanceDetailsScreen(
                             .size(42.dp)
                             .background(Color.White.copy(alpha = 0.6f), CircleShape)
                             .border(1.dp, Color.White, CircleShape)
+                            .clip(CircleShape)
                             .clickable { onBack() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            imageVector = Icons.Rounded.ArrowBack,
                             contentDescription = "Back",
                             tint = Color(0xFF1E1E1E),
                             modifier = Modifier.size(20.dp)
@@ -277,44 +275,6 @@ fun DistanceDetailsScreen(
                 }
             }
 
-            // Speed & Average Pace Row
-            item {
-                AnimatedVisibility(
-                    visible = isVisible,
-                    enter = fadeIn(animationSpec = tween(650)) + slideInVertically(initialOffsetY = { 110 }, animationSpec = tween(650))
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        PremiumAnimatedWaveCard(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(135.dp),
-                            title = "Walking Speed",
-                            value = String.format("%.1f", walkingSpeed),
-                            unit = "km/h",
-                            badgeText = "Speed = Distance / Time",
-                            colors = listOf(Color(0xFF00B4DB), Color(0xFF0083B0)),
-                            icon = Icons.AutoMirrored.Rounded.DirectionsRun,
-                            noiseLevel = userProfile.uiNoiseLevel
-                        )
-                        PremiumAnimatedWaveCard(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(135.dp),
-                            title = "Average Pace",
-                            value = com.example.data.FitnessCalculations.formatPace(avgPaceSec),
-                            unit = "min/km",
-                            badgeText = "Pace = Time / Distance",
-                            colors = listOf(Color(0xFF7F00FF), Color(0xFFE100FF)),
-                            icon = Icons.Rounded.DateRange,
-                            noiseLevel = userProfile.uiNoiseLevel
-                        )
-                    }
-                }
-            }
-
             // Estimated Stride Length Card
             item {
                 AnimatedVisibility(
@@ -322,7 +282,7 @@ fun DistanceDetailsScreen(
                     enter = fadeIn(animationSpec = tween(700)) + slideInVertically(initialOffsetY = { 120 }, animationSpec = tween(700))
                 ) {
                     StrideLengthCard(
-                        strideMeters = adaptiveStrideMeters,
+                        strideMeters = todayAvgStrideMeters,
                         heightCm = userProfile.heightCm,
                         gender = userProfile.gender,
                         formulaStr = "Base Stride = Height × ${if (userProfile.gender == "Female") "0.413" else "0.415"}",
@@ -493,18 +453,16 @@ fun DistanceHistoryCard(
 
     // Generate chart data for the selected timeframe
     val points = remember(selectedRange, history, todayDistance) {
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val labelFormat = SimpleDateFormat("MMM dd", Locale.getDefault())
-        val nowCal = Calendar.getInstance()
+        val labelFormat = java.time.format.DateTimeFormatter.ofPattern("MMM dd", Locale.getDefault())
+        val today = java.time.LocalDate.now()
 
         when (selectedRange) {
             "7 Days" -> {
                 val list = mutableListOf<ChartPointData>()
                 for (i in 6 downTo 0) {
-                    val cal = Calendar.getInstance()
-                    cal.add(Calendar.DAY_OF_YEAR, -i)
-                    val dateStr = sdf.format(cal.time)
-                    val lbl = labelFormat.format(cal.time)
+                    val targetDate = today.minusDays(i.toLong())
+                    val dateStr = targetDate.toString()
+                    val lbl = targetDate.format(labelFormat)
                     val dist = if (i == 0) todayDistance else (history.find { it.dateString == dateStr }?.distanceKm ?: 0f)
                     list.add(ChartPointData(lbl, dist))
                 }
@@ -513,28 +471,65 @@ fun DistanceHistoryCard(
             "30 Days" -> {
                 val list = mutableListOf<ChartPointData>()
                 for (i in 5 downTo 0) {
-                    val cal = Calendar.getInstance()
-                    cal.add(Calendar.DAY_OF_YEAR, -(i * 5))
-                    val lbl = labelFormat.format(cal.time)
-                    val dist = if (i == 0) todayDistance else (history.take(i * 5 + 5).map { it.distanceKm }.average().toFloat().let { if (it.isNaN()) 0.2f else it })
-                    list.add(ChartPointData(lbl, dist))
+                    val endDate = today.minusDays((i * 5).toLong())
+                    val startDate = today.minusDays((i * 5 + 4).toLong())
+                    val lbl = endDate.format(labelFormat)
+                    var distSum = 0f
+                    var count = 0
+                    var date = startDate
+                    while (!date.isAfter(endDate)) {
+                        if (date == today) {
+                            distSum += todayDistance
+                            count++
+                        } else {
+                            val rec = history.find { it.dateString == date.toString() }
+                            if (rec != null) {
+                                distSum += rec.distanceKm
+                                count++
+                            }
+                        }
+                        date = date.plusDays(1)
+                    }
+                    val avgDist = if (count > 0) distSum / count else 0f
+                    list.add(ChartPointData(lbl, avgDist))
                 }
                 list
             }
             "3 Months" -> {
-                listOf(
-                    ChartPointData("Month 1", 1.2f),
-                    ChartPointData("Month 2", 2.8f),
-                    ChartPointData("Month 3", todayDistance + 3.1f)
-                )
+                val list = mutableListOf<ChartPointData>()
+                val monthFormatter = java.time.format.DateTimeFormatter.ofPattern("MMM", Locale.getDefault())
+                for (m in 2 downTo 0) {
+                    val targetMonth = today.minusMonths(m.toLong())
+                    val lbl = targetMonth.format(monthFormatter)
+                    val monthHistory = history.filter {
+                        try {
+                            val d = java.time.LocalDate.parse(it.dateString)
+                            d.year == targetMonth.year && d.month == targetMonth.month && d != today
+                        } catch (e: Exception) { false }
+                    }
+                    var sum = monthHistory.sumOf { it.distanceKm.toDouble() }.toFloat()
+                    if (m == 0) sum += todayDistance
+                    list.add(ChartPointData(lbl, sum))
+                }
+                list
             }
             else -> { // 1 Year
-                listOf(
-                    ChartPointData("Q1", 12.4f),
-                    ChartPointData("Q2", 18.2f),
-                    ChartPointData("Q3", 22.0f),
-                    ChartPointData("Q4", 28.5f)
-                )
+                val list = mutableListOf<ChartPointData>()
+                for (q in 3 downTo 0) {
+                    val endMonth = today.minusMonths((q * 3).toLong())
+                    val startMonth = today.minusMonths((q * 3 + 2).toLong())
+                    val lbl = "Q${4 - q}"
+                    val qHistory = history.filter {
+                        try {
+                            val d = java.time.LocalDate.parse(it.dateString)
+                            !d.isBefore(startMonth.withDayOfMonth(1)) && !d.isAfter(endMonth.withDayOfMonth(endMonth.lengthOfMonth())) && d != today
+                        } catch (e: Exception) { false }
+                    }
+                    var sum = qHistory.sumOf { it.distanceKm.toDouble() }.toFloat()
+                    if (q == 0) sum += todayDistance
+                    list.add(ChartPointData(lbl, sum))
+                }
+                list
             }
         }
     }
@@ -565,6 +560,7 @@ fun DistanceHistoryCard(
                         modifier = Modifier
                             .background(Color.White.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
                             .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(16.dp))
                             .clickable { dropdownExpanded = true }
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
@@ -786,7 +782,7 @@ fun StrideLengthCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.DirectionsWalk,
+                            imageVector = Icons.Rounded.DirectionsWalk,
                             contentDescription = "Stride Length",
                             tint = Color.White,
                             modifier = Modifier.size(28.dp)
@@ -814,7 +810,7 @@ fun StrideLengthCard(
                             )
                         }
                         Text(
-                            text = "Based on your profile",
+                            text = "Today's Avg Stride Length",
                             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                             color = Color.Gray
                         )
@@ -829,7 +825,7 @@ fun StrideLengthCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.DirectionsRun,
+                        imageVector = Icons.Rounded.DirectionsRun,
                         contentDescription = null,
                         tint = Color(0xFF8E24AA),
                         modifier = Modifier.size(24.dp)

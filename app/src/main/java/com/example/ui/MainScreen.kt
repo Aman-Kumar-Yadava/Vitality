@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
-import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
+import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.outlined.DirectionsWalk
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Close
@@ -43,8 +43,9 @@ sealed class Screen(
     object Dashboard : Screen("dashboard", "Today", Icons.Rounded.Home)
     object History : Screen("history", "Trends", Icons.Rounded.ShowChart)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
-    object DistanceDetails : Screen("distance_details", "Distance", Icons.AutoMirrored.Filled.DirectionsWalk)
+    object DistanceDetails : Screen("distance_details", "Distance", Icons.Filled.DirectionsWalk)
     object CaloriesDetails : Screen("calories_details", "Calories", Icons.Rounded.LocalFireDepartment)
+    object PaceDetails : Screen("pace_details", "Pace", Icons.Rounded.ShowChart)
 }
 
 @Composable
@@ -56,7 +57,8 @@ fun MainScreen(viewModel: MainViewModel) {
     val isSettingsOpen = currentDestination?.route == Screen.Settings.route
     val isDistanceDetailsOpen = currentDestination?.route == Screen.DistanceDetails.route
     val isCaloriesDetailsOpen = currentDestination?.route == Screen.CaloriesDetails.route
-    val hideNavAndSettings = isSettingsOpen || isDistanceDetailsOpen || isCaloriesDetailsOpen
+    val isPaceDetailsOpen = currentDestination?.route == Screen.PaceDetails.route
+    val hideNavAndSettings = isSettingsOpen || isDistanceDetailsOpen || isCaloriesDetailsOpen || isPaceDetailsOpen
     val items = listOf(Screen.Dashboard, Screen.History)
     
     Box(modifier = Modifier.fillMaxSize()) {
@@ -69,7 +71,8 @@ fun MainScreen(viewModel: MainViewModel) {
                 DashboardScreen(
                     viewModel = viewModel,
                     onDistanceClick = { navController.navigate(Screen.DistanceDetails.route) },
-                    onCaloriesClick = { navController.navigate(Screen.CaloriesDetails.route) }
+                    onCaloriesClick = { navController.navigate(Screen.CaloriesDetails.route) },
+                    onPaceClick = { navController.navigate(Screen.PaceDetails.route) }
                 ) 
             }
             composable(Screen.History.route) { HistoryScreen(viewModel) }
@@ -77,7 +80,8 @@ fun MainScreen(viewModel: MainViewModel) {
             composable(Screen.DistanceDetails.route) { 
                 DistanceDetailsScreen(
                     viewModel = viewModel,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onPaceClick = { navController.navigate(Screen.PaceDetails.route) }
                 ) 
             }
             composable(Screen.CaloriesDetails.route) { 
@@ -85,6 +89,12 @@ fun MainScreen(viewModel: MainViewModel) {
                     viewModel = viewModel,
                     onBack = { navController.popBackStack() }
                 ) 
+            }
+            composable(Screen.PaceDetails.route) {
+                PaceDetailsScreen(
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() }
+                )
             }
         }
         
@@ -159,6 +169,7 @@ fun MainScreen(viewModel: MainViewModel) {
                     modifier = Modifier
                         .size(40.dp)
                         .background(Color.White.copy(alpha = 0.5f), CircleShape)
+                        .clip(CircleShape)
                         .clickable {
                             if (isSettingsOpen) {
                                 navController.popBackStack()

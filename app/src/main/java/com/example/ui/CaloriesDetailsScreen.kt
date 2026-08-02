@@ -16,9 +16,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.DirectionsRun
-import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.DirectionsRun
+import androidx.compose.material.icons.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.DateRange
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Info
@@ -87,13 +87,12 @@ fun CaloriesDetailsScreen(
     val activeCalories = com.example.data.FitnessCalculations.calculateActiveCalories(metValue, userProfile.weightKg, durationHours).let {
         if (it > 0f) it else todayRecord?.caloriesBurned ?: (todayDistance * userProfile.weightKg * 1.0f)
     }
-    val estimatedTotalCalories = com.example.data.FitnessCalculations.calculateTotalCalories(activeCalories, userProfile.weightKg, durationHours)
+    // Calculate total daily burn by applying BMR for the full 24 hours
+    val estimatedTotalCalories = com.example.data.FitnessCalculations.calculateTotalCalories(activeCalories, userProfile.weightKg, 24f)
     val todayCalories = activeCalories
 
     // Yesterday comparison
-    val calendar = Calendar.getInstance()
-    calendar.add(Calendar.DAY_OF_YEAR, -1)
-    val yesterdayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
+    val yesterdayStr = java.time.LocalDate.now().minusDays(1).toString()
     val yesterdayRecord = history.find { it.dateString == yesterdayStr }
     val yesterdayCalories = yesterdayRecord?.caloriesBurned ?: 0f
 
@@ -106,23 +105,19 @@ fun CaloriesDetailsScreen(
     }
 
     // Weekly & Monthly calculations
-    val now = Calendar.getInstance()
+    val todayDate = java.time.LocalDate.now()
     val thisWeekRecords = history.filter { rec ->
         try {
-            val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(rec.dateString)
-            if (date != null) {
-                val diff = (now.timeInMillis - date.time) / (1000 * 60 * 60 * 24)
-                diff in 0..6
-            } else false
+            val recDate = java.time.LocalDate.parse(rec.dateString)
+            val diff = java.time.temporal.ChronoUnit.DAYS.between(recDate, todayDate)
+            diff in 0..6
         } catch (e: Exception) { false }
     }
     val lastWeekRecords = history.filter { rec ->
         try {
-            val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(rec.dateString)
-            if (date != null) {
-                val diff = (now.timeInMillis - date.time) / (1000 * 60 * 60 * 24)
-                diff in 7..13
-            } else false
+            val recDate = java.time.LocalDate.parse(rec.dateString)
+            val diff = java.time.temporal.ChronoUnit.DAYS.between(recDate, todayDate)
+            diff in 7..13
         } catch (e: Exception) { false }
     }
     val thisWeekCals = thisWeekRecords.sumOf { it.caloriesBurned.toDouble() }.toFloat().let { if (it == 0f) (todayCalories * 5.8f).coerceAtLeast(326f) else it }
@@ -131,20 +126,16 @@ fun CaloriesDetailsScreen(
 
     val thisMonthRecords = history.filter { rec ->
         try {
-            val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(rec.dateString)
-            if (date != null) {
-                val diff = (now.timeInMillis - date.time) / (1000 * 60 * 60 * 24)
-                diff in 0..29
-            } else false
+            val recDate = java.time.LocalDate.parse(rec.dateString)
+            val diff = java.time.temporal.ChronoUnit.DAYS.between(recDate, todayDate)
+            diff in 0..29
         } catch (e: Exception) { false }
     }
     val lastMonthRecords = history.filter { rec ->
         try {
-            val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(rec.dateString)
-            if (date != null) {
-                val diff = (now.timeInMillis - date.time) / (1000 * 60 * 60 * 24)
-                diff in 30..59
-            } else false
+            val recDate = java.time.LocalDate.parse(rec.dateString)
+            val diff = java.time.temporal.ChronoUnit.DAYS.between(recDate, todayDate)
+            diff in 30..59
         } catch (e: Exception) { false }
     }
     val thisMonthCals = thisMonthRecords.sumOf { it.caloriesBurned.toDouble() }.toFloat().let { if (it == 0f) (todayCalories * 22f).coerceAtLeast(1245f) else it }
@@ -193,11 +184,12 @@ fun CaloriesDetailsScreen(
                             .size(42.dp)
                             .background(Color.White.copy(alpha = 0.6f), CircleShape)
                             .border(1.dp, Color.White, CircleShape)
+                            .clip(CircleShape)
                             .clickable { onBack() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            imageVector = Icons.Rounded.ArrowBack,
                             contentDescription = "Back",
                             tint = Color(0xFF1E1E1E),
                             modifier = Modifier.size(20.dp)
@@ -306,50 +298,12 @@ fun CaloriesDetailsScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(140.dp),
-                            title = "MET Value",
+                            title = "Today's Avg MET",
                             value = String.format("%.1f", metValue),
                             unit = "METs",
                             badgeText = "Intensity multiplier",
                             colors = listOf(Color(0xFF8A2387), Color(0xFFE94057)),
                             icon = Icons.Rounded.Favorite,
-                            noiseLevel = userProfile.uiNoiseLevel
-                        )
-                    }
-                }
-            }
-
-            // Speed & Pace Row
-            item {
-                AnimatedVisibility(
-                    visible = isVisible,
-                    enter = fadeIn(animationSpec = tween(680)) + slideInVertically(initialOffsetY = { 115 }, animationSpec = tween(680))
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        PremiumAnimatedWaveCard(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(140.dp),
-                            title = "Walking Speed",
-                            value = String.format("%.1f", walkingSpeed),
-                            unit = "km/h",
-                            badgeText = "Speed = Distance / Time",
-                            colors = listOf(Color(0xFF00B4DB), Color(0xFF0083B0)),
-                            icon = Icons.AutoMirrored.Rounded.DirectionsRun,
-                            noiseLevel = userProfile.uiNoiseLevel
-                        )
-                        PremiumAnimatedWaveCard(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(140.dp),
-                            title = "Average Pace",
-                            value = com.example.data.FitnessCalculations.formatPace(paceSec),
-                            unit = "min/km",
-                            badgeText = "Pace = Time / Distance",
-                            colors = listOf(Color(0xFF7F00FF), Color(0xFFE100FF)),
-                            icon = Icons.Rounded.DateRange,
                             noiseLevel = userProfile.uiNoiseLevel
                         )
                     }
@@ -531,18 +485,17 @@ fun CaloriesHistoryCard(
     var dropdownExpanded by remember { mutableStateOf(false) }
 
     val points = remember(selectedRange, history, todayCalories) {
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val labelFormat = SimpleDateFormat("MMM dd", Locale.getDefault())
+        val labelFormat = java.time.format.DateTimeFormatter.ofPattern("MMM dd", Locale.getDefault())
+        val today = java.time.LocalDate.now()
 
         when (selectedRange) {
             "7 Days" -> {
                 val list = mutableListOf<CalorieChartPoint>()
                 for (i in 6 downTo 0) {
-                    val cal = Calendar.getInstance()
-                    cal.add(Calendar.DAY_OF_YEAR, -i)
-                    val dateStr = sdf.format(cal.time)
-                    val lbl = labelFormat.format(cal.time)
-                    val cals = if (i == 0) todayCalories else (history.find { it.dateString == dateStr }?.caloriesBurned ?: (28f + (i * 7) % 35))
+                    val targetDate = today.minusDays(i.toLong())
+                    val dateStr = targetDate.toString()
+                    val lbl = targetDate.format(labelFormat)
+                    val cals = if (i == 0) todayCalories else (history.find { it.dateString == dateStr }?.caloriesBurned ?: 0f)
                     list.add(CalorieChartPoint(lbl, cals))
                 }
                 list
@@ -550,28 +503,65 @@ fun CaloriesHistoryCard(
             "30 Days" -> {
                 val list = mutableListOf<CalorieChartPoint>()
                 for (i in 5 downTo 0) {
-                    val cal = Calendar.getInstance()
-                    cal.add(Calendar.DAY_OF_YEAR, -(i * 5))
-                    val lbl = labelFormat.format(cal.time)
-                    val cals = if (i == 0) todayCalories else (45f + (i * 12) % 40)
-                    list.add(CalorieChartPoint(lbl, cals))
+                    val endDate = today.minusDays((i * 5).toLong())
+                    val startDate = today.minusDays((i * 5 + 4).toLong())
+                    val lbl = endDate.format(labelFormat)
+                    var cals = 0f
+                    var count = 0
+                    var date = startDate
+                    while (!date.isAfter(endDate)) {
+                        if (date == today) {
+                            cals += todayCalories
+                            count++
+                        } else {
+                            val rec = history.find { it.dateString == date.toString() }
+                            if (rec != null) {
+                                cals += rec.caloriesBurned
+                                count++
+                            }
+                        }
+                        date = date.plusDays(1)
+                    }
+                    val avgCals = if (count > 0) cals / count else 0f
+                    list.add(CalorieChartPoint(lbl, avgCals))
                 }
                 list
             }
             "3 Months" -> {
-                listOf(
-                    CalorieChartPoint("Month 1", 320f),
-                    CalorieChartPoint("Month 2", 480f),
-                    CalorieChartPoint("Month 3", todayCalories + 520f)
-                )
+                val list = mutableListOf<CalorieChartPoint>()
+                val monthFormatter = java.time.format.DateTimeFormatter.ofPattern("MMM", Locale.getDefault())
+                for (m in 2 downTo 0) {
+                    val targetMonth = today.minusMonths(m.toLong())
+                    val lbl = targetMonth.format(monthFormatter)
+                    val monthHistory = history.filter {
+                        try {
+                            val d = java.time.LocalDate.parse(it.dateString)
+                            d.year == targetMonth.year && d.month == targetMonth.month && d != today
+                        } catch (e: Exception) { false }
+                    }
+                    var sum = monthHistory.sumOf { it.caloriesBurned.toDouble() }.toFloat()
+                    if (m == 0) sum += todayCalories
+                    list.add(CalorieChartPoint(lbl, sum))
+                }
+                list
             }
             else -> { // 1 Year
-                listOf(
-                    CalorieChartPoint("Q1", 1120f),
-                    CalorieChartPoint("Q2", 1480f),
-                    CalorieChartPoint("Q3", 1620f),
-                    CalorieChartPoint("Q4", 1850f)
-                )
+                val list = mutableListOf<CalorieChartPoint>()
+                for (q in 3 downTo 0) {
+                    val endMonth = today.minusMonths((q * 3).toLong())
+                    val startMonth = today.minusMonths((q * 3 + 2).toLong())
+                    val lbl = "Q${4 - q}"
+                    val qHistory = history.filter {
+                        try {
+                            val d = java.time.LocalDate.parse(it.dateString)
+                            !d.isBefore(startMonth.withDayOfMonth(1)) && !d.isAfter(endMonth.withDayOfMonth(endMonth.lengthOfMonth())) && d != today
+                        } catch (e: Exception) { false }
+                    }
+                    var sum = qHistory.sumOf { it.caloriesBurned.toDouble() }.toFloat()
+                    if (q == 0) sum += todayCalories
+                    list.add(CalorieChartPoint(lbl, sum))
+                }
+                list
             }
         }
     }
@@ -601,6 +591,7 @@ fun CaloriesHistoryCard(
                         modifier = Modifier
                             .background(Color.White.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
                             .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(16.dp))
                             .clickable { dropdownExpanded = true }
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
@@ -879,7 +870,7 @@ fun HowCaloriesCalculatedCard(
 
                 // Duration
                 CalculationFactorItem(
-                    icon = Icons.AutoMirrored.Rounded.DirectionsRun,
+                    icon = Icons.Rounded.DirectionsRun,
                     bgColor = Color(0xFFAB47BC).copy(alpha = 0.12f),
                     iconColor = Color(0xFFAB47BC),
                     label = "Duration",
@@ -935,13 +926,13 @@ fun HowCaloriesCalculatedCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "MET Intensity Reference Table:\n" +
-                                "• Very slow (<3.2 km/h): 2.0 MET\n" +
-                                "• Slow (3.2–4.0 km/h): 2.8 MET\n" +
-                                "• Normal (4.0–5.2 km/h): 3.5 MET\n" +
-                                "• Brisk (5.2–6.0 km/h): 4.3 MET\n" +
-                                "• Fast (6.0–7.2 km/h): 5.0 MET\n" +
-                                "• Very fast (>7.2 km/h): 6.3 MET",
+                        text = "Dynamic MET Recalculation Engine:\n" +
+                                "• Continuously recalculates based on your real-time speed & step rate (cadence).\n" +
+                                "• Slow Walk (1.0–3.2 km/h): 2.0 – 2.8 METs\n" +
+                                "• Moderate Walk (3.2–5.0 km/h): 2.8 – 3.8 METs\n" +
+                                "• Brisk Walk (5.0–6.5 km/h): 3.8 – 5.0 METs\n" +
+                                "• Power Walk (6.5–8.0 km/h): 5.0 – 7.5 METs\n" +
+                                "• Jogging/Running (>8.0 km/h): 7.5 – 12.0+ METs",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontSize = 11.sp,
                             color = Color(0xFF4A148C).copy(alpha = 0.85f)
@@ -984,7 +975,7 @@ fun HowCaloriesCalculatedCard(
 }
 
 @Composable
-fun CalculationFactorItem(
+private fun CalculationFactorItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     bgColor: Color,
     iconColor: Color,
@@ -1058,21 +1049,6 @@ fun AboutCaloriesCard(noiseLevel: Float = 0f) {
                     text = "Calories are estimated based on your activity, profile, and standard formulas. Results are estimates and may vary.",
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                     color = Color.DarkGray
-                )
-            }
-
-            // Decorative walking icon badge
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(Color(0xFFFF9800).copy(alpha = 0.12f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.DirectionsWalk,
-                    contentDescription = null,
-                    tint = Color(0xFFFF9800),
-                    modifier = Modifier.size(24.dp)
                 )
             }
         }

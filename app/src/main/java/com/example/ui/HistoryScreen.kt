@@ -10,7 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.DirectionsRun
+import androidx.compose.material.icons.rounded.DirectionsRun
 import androidx.compose.material.icons.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Timeline
@@ -197,7 +197,7 @@ fun BuffedLifetimeStatsCard(totalSteps: Int, totalDistance: Float, totalCalories
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight(),
-                        icon = Icons.AutoMirrored.Rounded.DirectionsRun,
+                        icon = Icons.Rounded.DirectionsRun,
                         value = String.format("%.1f km", totalDistance),
                         label = "Distance",
                         accentColor = Color(0xFF00B0FF)

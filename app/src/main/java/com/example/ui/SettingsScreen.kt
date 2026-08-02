@@ -13,9 +13,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.DirectionsWalk
+import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -70,7 +70,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     if (showProfileSubScreen) {
                         IconButton(onClick = { showProfileSubScreen = false }) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                imageVector = Icons.Rounded.ArrowBack,
                                 contentDescription = "Back to Settings",
                                 tint = Color(0xFF1E1E1E)
                             )
@@ -117,6 +117,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .shadow(12.dp, RoundedCornerShape(24.dp))
+                            .clip(RoundedCornerShape(24.dp))
                             .clickable { showProfileSubScreen = true },
                         shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
@@ -169,7 +170,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                                 }
 
                                 Icon(
-                                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                                    imageVector = Icons.Rounded.KeyboardArrowRight,
                                     contentDescription = "View Profile",
                                     tint = Color.White,
                                     modifier = Modifier.size(28.dp)
@@ -955,7 +956,7 @@ private fun AppPreferencesSection(
                         Text("Gradient Widget", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.AutoMirrored.Rounded.DirectionsWalk, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Rounded.DirectionsWalk, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("8,450", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold), color = Color.White)
                         }
@@ -992,7 +993,7 @@ private fun AppPreferencesSection(
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.AutoMirrored.Rounded.DirectionsWalk, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Rounded.DirectionsWalk, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("8,450", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold), color = Color.White)
                             }

@@ -5,7 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.DirectionsRun
+import androidx.compose.material.icons.rounded.DirectionsRun
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -112,7 +112,7 @@ fun PremiumAnimatedRing(
             targetValue = progress,
             animationSpec = spring(
                 dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessLow
+                stiffness = Spring.StiffnessMedium
             )
         )
     }
@@ -341,7 +341,7 @@ fun PulsingRunningIcon(modifier: Modifier = Modifier) {
             }
         }
         androidx.compose.material3.Icon(
-            imageVector = Icons.AutoMirrored.Rounded.DirectionsRun,
+            imageVector = Icons.Rounded.DirectionsRun,
             contentDescription = null,
             modifier = Modifier.fillMaxSize().scale(scale),
             tint = Color(0xFF7F00FF)
