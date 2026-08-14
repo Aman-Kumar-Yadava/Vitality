@@ -21,33 +21,36 @@ class StepTrackerManager(
     private val context: Context,
     private val repository: StepRepository
 ) : SensorEventListener {
+
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val stepSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
     private val stepDetectorSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)
     
     private val _currentSteps = MutableStateFlow(0)
     val currentSteps: StateFlow<Int> = _currentSteps
-
-    private var initialStepCount = -1f
+    
+    // @Volatile ensures thread safety between the background DB coroutines and UI thread
+    @Volatile private var initialStepCount = -1f
+    @Volatile private var lastSavedSteps = 0
+    @Volatile private var lastDbSaveSteps = 0
+    @Volatile private var isInitialized = false
+    @Volatile private var isDatabaseLoading = false
+    @Volatile private var latestTotalSteps = -1f
+    
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-
-    private var trackingDate = dateFormat.format(Date())
-    private var lastSavedSteps = 0
-    private var lastDbSaveSteps = 0
-    private var isInitialized = false
-    private var isDatabaseLoading = false
-    private var latestTotalSteps = -1f
-
+    
     private val prefs = context.getSharedPreferences("step_tracker_prefs", Context.MODE_PRIVATE)
-
+    
+    // Initialize trackingDate from prefs so skipped days are handled correctly
+    private var trackingDate = prefs.getString("last_sensor_date", dateFormat.format(Date())) ?: dateFormat.format(Date())
+    
     private var currentSessionStartTime = 0L
     private var sessionStartTotalSteps = 0
     var lastStepTime = 0L
         private set
 
     init {
-        // Load initial steps for today
         coroutineScope.launch {
             val today = getCurrentDateString()
             val record = repository.getRecordForDateSync(today)
@@ -63,14 +66,7 @@ class StepTrackerManager(
                 val today = getCurrentDateString()
                 if (trackingDate != today) {
                     trackingDate = today
-                    isInitialized = false
-                    val record = repository.getRecordForDateSync(today)
-                    val dbSteps = record?.steps ?: 0
-                    lastSavedSteps = dbSteps
-                    lastDbSaveSteps = dbSteps
-                    _currentSteps.value = dbSteps
-                    
-                    updateWidget()
+                    isInitialized = false // Force clean rollover on next sensor event
                 }
                 kotlinx.coroutines.delay(60_000L) // Check every minute
             }
@@ -132,55 +128,53 @@ class StepTrackerManager(
         saveCurrentSession()
     }
 
-    private val recentStepTimes = ArrayDeque<Long>()
+    // FIX 1: Use Pair to track BOTH timestamp AND actual step count to defeat sensor batching
+    private val recentStepData = ArrayDeque<Pair<Long, Float>>()
     var currentCadence = 100f
         private set
 
     override fun onSensorChanged(event: SensorEvent?) {
         if (event?.sensor?.type == Sensor.TYPE_STEP_DETECTOR) {
-            // Instant feedback for UI jump bug
             if (isInitialized && initialStepCount != -1f) {
                 _currentSteps.value += 1
             }
             return
         }
-
+        
         if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
             val totalSteps = event.values[0]
             val now = System.currentTimeMillis()
             
-            // Track timestamp for cadence calculation
-            recentStepTimes.addLast(now)
-            if (recentStepTimes.size > 20) {
-                recentStepTimes.removeFirst()
+            // FIX 1 CONTINUED: Accurate Cadence Tracking based on delta steps, not delta events
+            recentStepData.addLast(Pair(now, totalSteps))
+            if (recentStepData.size > 5) {
+                recentStepData.removeFirst() // Keep last 5 batches
             }
-            if (recentStepTimes.size >= 3) {
-                val oldest = recentStepTimes.first()
-                val diffMs = now - oldest
-                if (diffMs > 2000L && diffMs < 120000L) {
-                    val stepsInWindow = recentStepTimes.size - 1
-                    val calculatedCadence = (stepsInWindow * 60000f) / diffMs
+            if (recentStepData.size >= 2) {
+                val oldest = recentStepData.first()
+                val diffMs = now - oldest.first
+                val diffSteps = totalSteps - oldest.second
+                if (diffMs > 2000L && diffMs < 120000L && diffSteps > 0) {
+                    val calculatedCadence = (diffSteps * 60000f) / diffMs
                     currentCadence = calculatedCadence.coerceIn(50f, 180f)
                 }
             }
             
             latestTotalSteps = totalSteps
             val today = getCurrentDateString()
-            if (trackingDate != today) {
-                // Day changed, check if we missed steps before resetting
-                val lastSensorSteps = prefs.getFloat("last_sensor_steps", -1f)
-                if (lastSensorSteps != -1f && totalSteps > lastSensorSteps) {
-                    val missedSteps = (totalSteps - lastSensorSteps).toInt()
-                    val yesterday = trackingDate
-                    coroutineScope.launch {
-                        val record = repository.getRecordForDateSync(yesterday)
-                        val prevDbSteps = record?.steps ?: 0
-                        repository.updateStepsForDate(yesterday, prevDbSteps + missedSteps, currentCadence)
-                    }
-                    prefs.edit().putFloat("last_sensor_steps", totalSteps).apply()
-                }
 
-                // Reset the tracking logic for the new day
+            // 1. MID-SESSION HARDWARE RESET GUARD
+            // If the sensor daemon crashes and resets to 0 while the app is alive, instantly reset our baselines.
+            val lastKnownSensorSteps = prefs.getFloat("last_sensor_steps", -1f)
+            if (lastKnownSensorSteps != -1f && totalSteps < lastKnownSensorSteps) {
+                initialStepCount = totalSteps
+                lastSavedSteps = _currentSteps.value
+                lastDbSaveSteps = _currentSteps.value
+            }
+
+            // 2. SYNCHRONOUS MIDNIGHT INTERCEPT
+            // Instantly detect a new day on the main thread before ANY math happens
+            if (trackingDate != today) {
                 trackingDate = today
                 isInitialized = false
             }
@@ -189,28 +183,52 @@ class StepTrackerManager(
                 isInitialized = true
                 isDatabaseLoading = true
                 initialStepCount = totalSteps
+                
                 coroutineScope.launch {
                     try {
                         val record = repository.getRecordForDateSync(today)
                         var currentDbSteps = record?.steps ?: 0
                         
-                        // Recover missed steps if the service was killed or day rolled over
                         val lastSensorSteps = prefs.getFloat("last_sensor_steps", -1f)
+                        val lastSensorDate = prefs.getString("last_sensor_date", today) ?: today
                         
-                        if (lastSensorSteps != -1f && totalSteps > lastSensorSteps) {
-                            val missedSteps = (totalSteps - lastSensorSteps).toInt()
-                            currentDbSteps += missedSteps
-                            repository.updateStepsForDate(today, currentDbSteps, currentCadence)
+                        // FIX 2: Hardware Reboot & Skipped Day Logic
+                        if (lastSensorSteps != -1f) {
+                            val missedSteps = if (totalSteps > lastSensorSteps) {
+                                (totalSteps - lastSensorSteps).toInt()
+                            } else if (totalSteps < lastSensorSteps - 50) {
+                                // REBOOT DETECTED: Hardware counter reset. Count new total as missed steps.
+                                totalSteps.toInt()
+                            } else { 0 }
+                            
+                            if (missedSteps > 0) {
+                                if (lastSensorDate == today) {
+                                    currentDbSteps += missedSteps
+                                    repository.updateStepsForDate(today, currentDbSteps, currentCadence)
+                                } else {
+                                    val pastRecord = repository.getRecordForDateSync(lastSensorDate)
+                                    val pastDbSteps = pastRecord?.steps ?: 0
+                                    repository.updateStepsForDate(lastSensorDate, pastDbSteps + missedSteps, currentCadence)
+                                }
+                            }
                         }
                         
                         lastSavedSteps = currentDbSteps
                         lastDbSaveSteps = currentDbSteps
                         
-                        val newSteps = (latestTotalSteps - initialStepCount).toInt()
+                        // FIX 3: Immediately save prefs BEFORE coroutine finishes to stop the "1000s" loop
+                        prefs.edit()
+                            .putString("last_sensor_date", today)
+                            .putFloat("last_sensor_steps", totalSteps)
+                            .apply()
+                            
+                        val newSteps = (latestTotalSteps - initialStepCount).toInt().coerceAtLeast(0)
                         val totalToday = lastSavedSteps + newSteps
+                        
                         if (totalToday > _currentSteps.value) {
                             _currentSteps.value = totalToday
                         }
+                        
                         if (totalToday - lastDbSaveSteps >= 10 || totalToday < lastDbSaveSteps) {
                             lastDbSaveSteps = totalToday
                             saveStepsToDb(totalToday)
@@ -222,21 +240,18 @@ class StepTrackerManager(
                 }
                 return
             }
+
             if (isDatabaseLoading) return
             
-            val newSteps = (totalSteps - initialStepCount).toInt()
+            val newSteps = (totalSteps - initialStepCount).toInt().coerceAtLeast(0)
             val totalToday = lastSavedSteps + newSteps
             
-            // Sync with detector's optimistic counting
             if (totalToday > _currentSteps.value) {
                 _currentSteps.value = totalToday
-            } else if (totalToday < _currentSteps.value - 20) { 
-                // If detector overcounted significantly, reset to counter truth
+            } else if (totalToday < _currentSteps.value - 20) {
                 _currentSteps.value = totalToday
             }
             
-            // Only save to DB and update widget periodically to avoid UI thread spam
-            // e.g. every 10 steps
             if (totalToday - lastDbSaveSteps >= 10 || totalToday < lastDbSaveSteps) {
                 lastDbSaveSteps = totalToday
                 saveStepsToDb(totalToday)
@@ -247,7 +262,7 @@ class StepTrackerManager(
                 .putString("last_sensor_date", today)
                 .putFloat("last_sensor_steps", totalSteps)
                 .apply()
-            
+                
             lastStepTime = now
         }
     }
@@ -262,7 +277,6 @@ class StepTrackerManager(
             val steps = (_currentSteps.value - sessionStartTotalSteps).coerceAtLeast(0)
             val durationMs = (endTime - startTime).coerceAtLeast(0)
             
-            // Save session if duration is at least 1 second or steps > 0
             if (durationMs >= 1000L || steps > 0) {
                 coroutineScope.launch {
                     val profile = repository.userPreferencesRepository.userProfileFlow.first()
@@ -307,7 +321,7 @@ class StepTrackerManager(
             repository.updateStepsForDate(today, newTotal)
             
             val endTime = System.currentTimeMillis()
-            val startTime = endTime - (steps * 1000L) // fake duration
+            val startTime = endTime - (steps * 1000L)
             val profile = repository.userPreferencesRepository.userProfileFlow.first()
             val distance = repository.calculateDistance(steps, profile)
             repository.addSession(WalkingSession(
@@ -317,7 +331,7 @@ class StepTrackerManager(
                 steps = steps,
                 distanceKm = distance
             ))
-
+            
             _currentSteps.value = newTotal
             lastSavedSteps = newTotal
             lastDbSaveSteps = newTotal
@@ -336,11 +350,13 @@ class StepTrackerManager(
         coroutineScope.launch {
             val today = getCurrentDateString()
             repository.updateCustomDataForDate(today, steps, distance, calories)
+            
             _currentSteps.value = steps
             lastSavedSteps = steps
             lastDbSaveSteps = steps
             initialStepCount = -1f
             isInitialized = false
+            
             updateWidget()
         }
     }
